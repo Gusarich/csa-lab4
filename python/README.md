@@ -15,7 +15,7 @@ uv sync --all-groups
 Assemble:
 
 ```bash
-uv run python assembler.py examples/prob2.asm out/prob2.bin \
+uv run python asm.py examples/prob2.asm out/prob2.bin \
   --debug out/prob2.hex \
   --map out/prob2.map.json
 ```
@@ -49,6 +49,7 @@ uv run pytest . -v --update-goldens
 
 - `isa.py` defines the fixed 32-bit instruction formats, register names,
   opcodes, segment container, encoder, decoder, and disassembler.
+- `asm.py` is the public assembler CLI described by the architecture.
 - `assembler.py` implements preprocessing, macros, conditionals, sections,
   `.org`, data directives, pseudoinstructions, two-pass address assignment, and
   binary/listing/source-map output.

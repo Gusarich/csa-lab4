@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
@@ -135,6 +139,51 @@ def test_expands_conditionals_macros_and_local_labels() -> None:
 def test_rejects_required_assembler_errors(source: str) -> None:
     with pytest.raises(AssemblerError):
         assemble(source)
+
+
+def test_asm_cli_public_interface_writes_binary_listing_and_map(tmp_path: Path) -> None:
+    source = tmp_path / "program.asm"
+    target = tmp_path / "program.bin"
+    listing = tmp_path / "program.hex"
+    source_map = tmp_path / "program.map.json"
+    source.write_text(
+        dedent(
+            """
+            .section .vectors
+            .word _start
+            .word 0
+            .space 56
+
+            .section .text
+            _start:
+                halt
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "asm.py",
+            str(source),
+            str(target),
+            "--debug",
+            str(listing),
+            "--map",
+            str(source_map),
+        ],
+        check=True,
+        capture_output=True,
+        cwd=Path(__file__).parents[1],
+        text=True,
+    )
+
+    assert completed.stderr == ""
+    assert target.read_bytes().startswith(b"L4MC")
+    assert "000040 - 0x43000000 - halt" in listing.read_text(encoding="utf-8")
+    mapped_sources = [entry["source"] for entry in json.loads(source_map.read_text(encoding="utf-8"))]
+    assert "halt" in mapped_sources
 
 
 def _word_at(segments: list[Segment], address: int) -> int:

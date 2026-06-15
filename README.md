@@ -29,7 +29,7 @@ uv sync --all-groups
 Assemble and run `hello`:
 
 ```bash
-uv run python assembler.py examples/hello.asm out/hello.bin \
+uv run python asm.py examples/hello.asm out/hello.bin \
   --debug out/hello.hex \
   --map out/hello.map.json
 touch out/empty.input
@@ -53,8 +53,9 @@ uv run coverage report -m
 
 - `python/isa.py` - instruction formats, opcodes, binary image encoding,
   decoding, and disassembly.
-- `python/assembler.py` - asm translator that produces an L4MC binary image,
-  debug listing, and source map.
+- `python/asm.py` - public assembler CLI.
+- `python/assembler.py` - asm translator implementation that produces an L4MC
+  binary image, debug listing, and source map.
 - `python/machine.py` - processor CLI and simulator entry point.
 - `python/datapath.py` - passive DataPath methods that correspond to hardware
   control signals.
