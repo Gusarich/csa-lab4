@@ -28,7 +28,7 @@ enable_assertion_pass_hook = true
 addopts = "--doctest-modules"
 log_format = "%(levelname)-7s %(module)s:%(funcName)-13s %(message)s"
 filterwarnings = [
-    "ignore:Passing a non-Collection iterable to parametrize is deprecated:pytest.PytestRemovedIn10Warning",
+    "ignore:Passing a non-Collection iterable to parametrize is deprecated",
 ]
 
 [tool.ruff]

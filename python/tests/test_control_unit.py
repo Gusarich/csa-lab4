@@ -137,7 +137,51 @@ def test_faults_on_unaligned_jump_register_target() -> None:
     )
 
     assert result.stop_reason == StopReason.FAULT_ADDR
-    assert result.log[-1].state == ControlState.FAULT
+    assert result.log[-1].state == ControlState.EXEC_JUMP
+
+
+def test_stop_tick_limit_is_visible_on_final_trace_row() -> None:
+    result = _run_source(
+        """
+        .section .vectors
+        .word _start
+        .word 0
+        .space 56
+
+        .section .text
+        _start:
+            j _start
+        """,
+        max_ticks=50,
+    )
+
+    assert result.stop_reason == StopReason.STOP_TICK_LIMIT
+    assert result.ticks == 50
+    assert len(result.log) == result.ticks
+    assert result.log[-1].stop_reason == StopReason.STOP_TICK_LIMIT
+
+
+def test_cache_completion_ticks_keep_the_state_that_consumed_the_tick() -> None:
+    result = _run_source(
+        """
+        .section .vectors
+        .word _start
+        .word 0
+        .space 56
+
+        .section .text
+        _start:
+            li a0, 'A'
+            out OUT_DATA, a0
+            halt
+        """,
+        max_ticks=160,
+    )
+
+    assert any(
+        entry.state == ControlState.IF and entry.cache is not None and entry.cache.completed for entry in result.log
+    )
+    assert not any(entry.state == ControlState.EXEC_ALU and entry.cache is not None for entry in result.log)
 
 
 def test_last_word_address_is_valid_but_next_word_faults() -> None:

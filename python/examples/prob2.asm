@@ -113,32 +113,62 @@ parse_range_error:
     ret
 
 compute_prob2:
-    la t2, n_value
-    lw t1, 0(t2)
-    li t0, 1
-    li a0, 0
-    li a1, 0
-    li a2, 0
-prob2_loop:
-    bltu t1, t0, prob2_after_loop
-    add a0, a0, t0
-    mul t3, t0, t0
-    mulhu t4, t0, t0
-    add a2, a2, t3
-    sltu t5, a2, t3
-    add a1, a1, t4
-    add a1, a1, t5
-    addi t0, t0, 1
-    j prob2_loop
+    la t0, n_value
+    lw t0, 0(t0)
+    move t1, t0
+    addi t2, t0, 1
+    andi t3, t1, 1
+    bne t3, zero, prob2_sum_half_next
+    li t5, 1
+    srl t1, t1, t5
+    j prob2_sum_ready
+prob2_sum_half_next:
+    li t5, 1
+    srl t2, t2, t5
+prob2_sum_ready:
+    mul t4, t1, t2
+    mul a3, t4, t4
+    mulhu a2, t4, t4
 
-prob2_after_loop:
-    mul t3, a0, a0
-    mulhu t4, a0, a0
-    sltu t5, t3, a2
-    sub rv, t3, a2
-    sub a0, t4, a1
-    sub a0, a0, t5
-    move a1, rv
+    la t0, n_value
+    lw t0, 0(t0)
+    addi t1, t0, 1
+    add t2, t0, t0
+    addi t2, t2, 1
+    andi t3, t0, 1
+    bne t3, zero, prob2_sumsq_half_next
+    li t5, 1
+    srl t0, t0, t5
+    j prob2_sumsq_divide_three
+prob2_sumsq_half_next:
+    li t5, 1
+    srl t1, t1, t5
+prob2_sumsq_divide_three:
+    li t5, 3
+    remu t3, t0, t5
+    bne t3, zero, prob2_sumsq_try_next_div3
+    divu t0, t0, t5
+    j prob2_sumsq_multiply
+prob2_sumsq_try_next_div3:
+    remu t3, t1, t5
+    bne t3, zero, prob2_sumsq_div_2n1_by3
+    divu t1, t1, t5
+    j prob2_sumsq_multiply
+prob2_sumsq_div_2n1_by3:
+    divu t2, t2, t5
+
+prob2_sumsq_multiply:
+    mul t3, t0, t1
+    mulhu t4, t0, t1
+    mul a1, t3, t2
+    mulhu a0, t3, t2
+    mul t5, t4, t2
+    add a0, a0, t5
+
+    sltu t0, a3, a1
+    sub a1, a3, a1
+    sub a0, a2, a0
+    sub a0, a0, t0
     ret
 
 puts_pstr:

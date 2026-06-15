@@ -1,0 +1,80 @@
+in_source: |
+  .equ STACK_INIT, 0x01000000
+
+  .section .vectors
+  .org 0x000000
+  .word _start
+  .word 0
+  .space 56
+
+  .section .text
+  .org 0x000040
+  _start:
+      li sp, STACK_INIT
+      la t0, values
+      lw t1, 0(t0)
+      lw t2, 4(t0)
+      lw t3, 8(t0)
+      lw t4, 12(t0)
+      add a0, t1, t2
+      add a0, a0, t3
+      add a0, a0, t4
+      out OUT_DATA, a0
+
+  done:
+      halt
+
+  .section .data
+  values:
+      .word 'A', 0, 0, 0
+in_args:
+  max_ticks: 5000
+in_log_patterns:
+- cache=read:fill
+- cache=read:tag:addr=000054:index=05:tag=000000:HIT
+- port=out 0x0011 <- 0x00000041
+- stop=HALT
+out_log: |-
+  T=000001 step=1 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fill:addr=000000:index=00:tag=000000:mem=000000:word=0:lat=1
+  T=000172 step=0 mode=MAIN state=IF pc=000058 ir=0x20750004 alu_out=0x00000074 addr_sel=000054 decoded=lw t2, 4(t0) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000074,t1=00000041,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='lw t2, 4(t0)' cache=read:tag:addr=000054:index=05:tag=000000:HIT:ready:value=0x20750004
+  T=000268 step=0 mode=MAIN state=EXEC_IO pc=000070 ir=0x51100011 alu_out=0x00000080 addr_sel=00006C decoded=out 0x0011, a0 epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=1 stop=RUNNING regs=[zero=00000000,a0=00000041,a1=00000000,a2=00000000,a3=00000000,t0=00000074,t1=00000041,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='out OUT_DATA, a0' port=out 0x0011 <- 0x00000041
+  T=000270 step=0 mode=MAIN state=EXEC_SYS pc=000074 ir=0x43000000 alu_out=0x00000080 addr_sel=000070 decoded=halt epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=1 stop=HALT regs=[zero=00000000,a0=00000041,a1=00000000,a2=00000000,a3=00000000,t0=00000074,t1=00000041,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='halt'
+out_ticks: 271
+out_stop_reason: HALT
+out_stdout: A
+out_listing: |-
+  000000 - 0x00000040 - .word 64
+  000004 - 0x00000000 - .word 0
+  000008 - 0x00000000 - .word 0
+  00000C - 0x00000000 - .word 0
+  000010 - 0x00000000 - .word 0
+  000014 - 0x00000000 - .word 0
+  000018 - 0x00000000 - .word 0
+  00001C - 0x00000000 - .word 0
+  000020 - 0x00000000 - .word 0
+  000024 - 0x00000000 - .word 0
+  000028 - 0x00000000 - .word 0
+  00002C - 0x00000000 - .word 0
+  000030 - 0x00000000 - .word 0
+  000034 - 0x00000000 - .word 0
+  000038 - 0x00000000 - .word 0
+  00003C - 0x00000000 - .word 0
+  000040 - 0x14E00100 - lui sp, 256
+  000044 - 0x12EE0000 - ori sp, sp, 0
+  000048 - 0x14500000 - lui t0, 0
+  00004C - 0x12550074 - ori t0, t0, 116
+  000050 - 0x20650000 - lw t1, 0(t0)
+  000054 - 0x20750004 - lw t2, 4(t0)
+  000058 - 0x20850008 - lw t3, 8(t0)
+  00005C - 0x2095000C - lw t4, 12(t0)
+  000060 - 0x01167000 - add a0, t1, t2
+  000064 - 0x01118000 - add a0, a0, t3
+  000068 - 0x01119000 - add a0, a0, t4
+  00006C - 0x51100011 - out 0x0011, a0
+  000070 - 0x43000000 - halt
+  000074 - 0x00000041 - .word 65
+  000078 - 0x00000000 - .word 0
+  00007C - 0x00000000 - .word 0
+  000080 - 0x00000000 - .word 0
+out_code_base64: 
+  TDRNQwABAAMAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAADQAAAABFOABABLuAAAUUAAAElUAdCBlAAAgdQAEIIUACCCVAAwBFnAAARGAAAERkABREAARQwAAAAAAAHQAAAAQAAAAAgAAAEEAAAAAAAAAAAAAAAA=

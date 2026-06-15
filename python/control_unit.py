@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from cache import CacheAccessError, CacheTick, MemoryAccessError
@@ -140,7 +140,7 @@ class ControlUnit:
         self.port_event = ""
         input_event = self.datapath.apply_input_tick(self.tick_counter)
         cache_event = self._perform_state_tick()
-        entry = self._trace_entry(current_step, input_event, cache_event)
+        entry = self._trace_entry(current_step, current_state, input_event, cache_event)
         if self.keep_log:
             self.log.append(entry)
         self._advance_step(current_state)
@@ -153,6 +153,8 @@ class ControlUnit:
             self.tick()
         if self.stop_reason == StopReason.RUNNING:
             self._stop(ControlState.FAULT, StopReason.STOP_TICK_LIMIT)
+            if self.keep_log and self.log:
+                self.log[-1] = replace(self.log[-1], stop_reason=self.stop_reason)
         return SimulationResult(self.datapath.output_text(), self.stop_reason, self.tick_counter, self.log)
 
     def _perform_state_tick(self) -> CacheTick | None:
@@ -390,6 +392,7 @@ class ControlUnit:
     def _trace_entry(
         self,
         step: int,
+        state: ControlState,
         input_event: AppliedInputEvent | None,
         cache_event: CacheTick | None,
     ) -> TraceEntry:
@@ -397,13 +400,13 @@ class ControlUnit:
         return TraceEntry(
             tick=self.tick_counter,
             step=step,
-            mode=self._mode(),
-            state=self.state,
+            mode=self._mode(state),
+            state=state,
             pc=self.pc,
             ir=self.datapath.ir,
             alu_out=snapshot.alu_out,
             selected_address=snapshot.selected_address,
-            decoded=self._decoded_text(),
+            decoded=self._decoded_text(state),
             source=self.source_map.get(self.instruction_address, ""),
             registers=snapshot.registers,
             epc=self.epc,
@@ -418,19 +421,19 @@ class ControlUnit:
             stop_reason=self.stop_reason,
         )
 
-    def _mode(self) -> ExecutionMode:
-        if self.state == ControlState.RESET_VECTOR:
+    def _mode(self, state: ControlState) -> ExecutionMode:
+        if state == ControlState.RESET_VECTOR:
             return ExecutionMode.RESET
-        if self.state == ControlState.HALTED:
+        if state == ControlState.HALTED:
             return ExecutionMode.HALTED
-        if self.state == ControlState.FAULT:
+        if state == ControlState.FAULT:
             return ExecutionMode.FAULT
-        if self.status & STATUS_IN_IRQ or self.state in {ControlState.IRQ_ENTER, ControlState.IRQ_VECTOR}:
+        if self.status & STATUS_IN_IRQ or state in {ControlState.IRQ_ENTER, ControlState.IRQ_VECTOR}:
             return ExecutionMode.IRQ
         return ExecutionMode.MAIN
 
-    def _decoded_text(self) -> str:
-        if self.state in {ControlState.RESET_VECTOR, ControlState.FAULT, ControlState.HALTED}:
+    def _decoded_text(self, state: ControlState) -> str:
+        if state in {ControlState.RESET_VECTOR, ControlState.FAULT, ControlState.HALTED}:
             return ""
         return disassemble(self.instruction)
 

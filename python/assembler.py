@@ -52,6 +52,8 @@ SECTION_FLAGS = {
 }
 DEFAULT_SECTION = ".text"
 MAX_MACRO_DEPTH = 32
+VECTOR_RESERVED_START = 0x000008
+VECTOR_TABLE_END = 0x000040
 
 BUILTIN_CONSTANTS = {
     "IN_STATUS": IN_STATUS,
@@ -507,6 +509,8 @@ class Assembler:
             if placement.section == ".bss" and value != 0:
                 _fail_at(placement.line, ".word in .bss must be zero")
             address = placement.address + index * WORD_BYTES
+            if placement.section == ".vectors" and VECTOR_RESERVED_START <= address < VECTOR_TABLE_END and value != 0:
+                _fail_at(placement.line, "reserved vector-table entries must be zero")
             if placement.section != ".bss":
                 self._write_word(placement.section, address, value)
             self._record_listing(address, value, ".word {}".format(value), placement.line)
@@ -794,7 +798,7 @@ def _pseudo_lines(mnemonic: str, operands: list[str], constants: dict[str, int])
         return ["jal {}".format(operands[0])]
     if mnemonic == "la":
         _require_raw_operand_count(operands, 2, mnemonic)
-        return _expand_la(operands[0], operands[1])
+        return _expand_la(operands[0], operands[1], constants)
     if mnemonic == "li":
         _require_raw_operand_count(operands, 2, mnemonic)
         return _expand_li(operands[0], operands[1], constants)
@@ -813,7 +817,11 @@ def _expand_li(register: str, expression: str, constants: dict[str, int]) -> lis
     return ["lui {}, {}".format(register, encoded >> 16), "ori {}, {}, {}".format(register, register, encoded & 0xFFFF)]
 
 
-def _expand_la(register: str, expression: str) -> list[str]:
+def _expand_la(register: str, expression: str, constants: dict[str, int]) -> list[str]:
+    value = _known_constant_expression_value(expression, constants)
+    if value is not None:
+        if not 0 <= value <= MAX_ADDRESS:
+            _fail("la address is outside 24-bit memory range")
     return [
         "lui {}, (({}) >> 16)".format(register, expression),
         "ori {}, {}, (({}) & 0xFFFF)".format(register, register, expression),
@@ -946,16 +954,64 @@ def _parse_memory_operand(operand: str, line: SourceLine) -> tuple[str, str]:
 
 
 def _parse_string_literal(token: str, line: SourceLine) -> str:
-    try:
-        value = ast.literal_eval(token)
-    except (SyntaxError, ValueError):
-        _fail_at(line, "invalid string literal")
-    if not isinstance(value, str):
+    token = token.strip()
+    if len(token) < 2 or token[0] not in {"'", '"'} or token[-1] != token[0]:
         _fail_at(line, ".pstr requires a string literal")
-    for char in value:
-        if ord(char) > 0xFF:
-            _fail_at(line, "string character is out of byte range")
-    return value
+    chars: list[str] = []
+    index = 1
+    end = len(token) - 1
+    quote = token[0]
+    while index < end:
+        char, index = _parse_string_char(token, index, end, quote, line)
+        chars.append(char)
+    return "".join(chars)
+
+
+def _parse_string_char(token: str, index: int, end: int, quote: str, line: SourceLine) -> tuple[str, int]:
+    char = token[index]
+    if char == quote:
+        _fail_at(line, "invalid string literal")
+    if char != "\\":
+        if ord(char) > 0x7F:
+            _fail_at(line, "non-ASCII string bytes must use \\xNN escapes")
+        return char, index + 1
+    return _parse_string_escape(token, index, end, line)
+
+
+def _parse_string_escape(token: str, index: int, end: int, line: SourceLine) -> tuple[str, int]:
+    if index + 1 >= end:
+        _fail_at(line, "invalid string escape")
+    escape = token[index + 1]
+    if escape == "x":
+        return _parse_hex_string_escape(token, index, line)
+    escaped_chars = {
+        "0": "\0",
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "\\": "\\",
+        "'": "'",
+        '"': '"',
+    }
+    if escape not in escaped_chars:
+        _fail_at(line, "unsupported string escape")
+    return escaped_chars[escape], index + 2
+
+
+def _parse_hex_string_escape(token: str, index: int, line: SourceLine) -> tuple[str, int]:
+    hex_digits = token[index + 2 : index + 4]
+    if len(hex_digits) != 2 or not re.fullmatch(r"[0-9A-Fa-f]{2}", hex_digits):
+        _fail_at(line, "invalid \\xNN string escape")
+    return chr(int(hex_digits, 16)), index + 4
+
+
+def _known_constant_expression_value(expression: str, constants: dict[str, int]) -> int | None:
+    try:
+        return _eval_with(constants, expression)
+    except AssemblerError as exc:
+        if str(exc).startswith("unknown identifier:"):
+            return None
+        raise
 
 
 def _register(name: str, line: SourceLine) -> int:

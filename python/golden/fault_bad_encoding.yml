@@ -10,9 +10,9 @@ in_source: |
 in_args:
   max_ticks: 200
 in_log_patterns:
-- state=FAULT
-out_log: T=000081 step=40 mode=FAULT state=FAULT pc=000040 ir=0x14F10000 
-  alu_out=0x00000000 addr_sel=000040 decoded=- epc=000000 cause=0 status=IE:0 
+- stop=FAULT_BAD_ENCODING
+out_log: T=000081 step=40 mode=MAIN state=IF pc=000040 ir=0x14F10000 
+  alu_out=0x00000000 addr_sel=000040 decoded=nop epc=000000 cause=0 status=IE:0 
   IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 
   stop=FAULT_BAD_ENCODING 
   regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000]

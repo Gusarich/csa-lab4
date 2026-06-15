@@ -1,0 +1,304 @@
+in_source: |
+  .equ STACK_INIT, 0x01000000
+
+  .section .vectors
+  .org 0x000000
+  .word _start
+  .word 0
+  .space 56
+
+  .section .text
+  .org 0x000040
+  _start:
+      li sp, STACK_INIT
+
+      la a0, add_label
+      call puts_pstr
+      li t0, 0xFFFFFFFF
+      li t1, 1
+      add a1, t0, t1
+      sltu a0, a1, t0
+      call print_u64
+      call put_newline
+
+      la a0, mul_label
+      call puts_pstr
+      li t0, 0xFFFFFFFF
+      mul a1, t0, t0
+      mulhu a0, t0, t0
+      call print_u64
+      call put_newline
+
+  done:
+      halt
+
+  puts_pstr:
+      lw t0, 0(a0)
+      addi t1, a0, 4
+  puts_pstr_loop:
+      beq t0, zero, puts_pstr_done
+      lw t2, 0(t1)
+      out OUT_DATA, t2
+      addi t1, t1, 4
+      addi t0, t0, -1
+      j puts_pstr_loop
+  puts_pstr_done:
+      ret
+
+  put_newline:
+      li a0, '\n'
+      out OUT_DATA, a0
+      ret
+
+  print_u32:
+      move a1, a0
+      li a0, 0
+      j print_u64
+
+  print_u64:
+      la t0, decimal_powers
+      li t1, 20
+      li t2, 0
+  print_u64_power:
+      lw t4, 0(t0)
+      lw t5, 4(t0)
+      li t3, 0
+  print_u64_sub_loop:
+      bltu a0, t4, print_u64_emit
+      bltu t4, a0, print_u64_can_sub
+      bltu a1, t5, print_u64_emit
+  print_u64_can_sub:
+      sltu rv, a1, t5
+      sub a1, a1, t5
+      sub a0, a0, t4
+      sub a0, a0, rv
+      addi t3, t3, 1
+      j print_u64_sub_loop
+  print_u64_emit:
+      bne t2, zero, print_u64_output
+      bne t3, zero, print_u64_output
+      li rv, 1
+      beq t1, rv, print_u64_output
+      j print_u64_next
+  print_u64_output:
+      li t2, 1
+      addi t3, t3, '0'
+      out OUT_DATA, t3
+  print_u64_next:
+      addi t0, t0, 8
+      addi t1, t1, -1
+      bne t1, zero, print_u64_power
+      ret
+
+  .section .rodata
+  add_label:
+      .pstr "0xffffffff + 1 = "
+  mul_label:
+      .pstr "0xffffffff * 0xffffffff = "
+  decimal_powers:
+      .word 0x8AC72304, 0x89E80000
+      .word 0x0DE0B6B3, 0xA7640000
+      .word 0x01634578, 0x5D8A0000
+      .word 0x002386F2, 0x6FC10000
+      .word 0x00038D7E, 0xA4C68000
+      .word 0x00005AF3, 0x107A4000
+      .word 0x00000918, 0x4E72A000
+      .word 0x000000E8, 0xD4A51000
+      .word 0x00000017, 0x4876E800
+      .word 0x00000002, 0x540BE400
+      .word 0x00000000, 0x3B9ACA00
+      .word 0x00000000, 0x05F5E100
+      .word 0x00000000, 0x00989680
+      .word 0x00000000, 0x000F4240
+      .word 0x00000000, 0x000186A0
+      .word 0x00000000, 0x00002710
+      .word 0x00000000, 0x000003E8
+      .word 0x00000000, 0x00000064
+      .word 0x00000000, 0x0000000A
+      .word 0x00000000, 0x00000001
+in_args:
+  max_ticks: 25000
+in_log_patterns:
+- port=out 0x0011 <- 0x00000030
+- port=out 0x0011 <- 0x0000002A
+- port=out 0x0011 <- 0x0000000A
+- stop=HALT
+out_log: |-
+  T=000262 step=0 mode=MAIN state=EXEC_IO pc=0000AC ir=0x51700011 alu_out=0x00000148 addr_sel=0000A8 decoded=out 0x0011, t2 epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=1 stop=RUNNING regs=[zero=00000000,a0=00000144,a1=00000000,a2=00000000,a3=00000000,t0=00000011,t1=00000148,t2=00000030,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000054] src='out OUT_DATA, t2' port=out 0x0011 <- 0x00000030
+  T=004495 step=0 mode=MAIN state=EXEC_IO pc=0000AC ir=0x51700011 alu_out=0x000001BC addr_sel=0000A8 decoded=out 0x0011, t2 epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=40 stop=RUNNING regs=[zero=00000000,a0=0000018C,a1=00000000,a2=00000000,a3=00000000,t0=0000000F,t1=000001BC,t2=0000002A,t3=00000036,t4=00000000,t5=00000001,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=0000007C] src='out OUT_DATA, t2' port=out 0x0011 <- 0x0000002A
+  T=007923 step=0 mode=MAIN state=EXEC_IO pc=0000C4 ir=0x51100011 alu_out=0x00000294 addr_sel=0000C0 decoded=out 0x0011, a0 epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=75 stop=RUNNING regs=[zero=00000000,a0=0000000A,a1=00000000,a2=00000000,a3=00000000,t0=00000298,t1=00000000,t2=00000001,t3=00000035,t4=00000000,t5=00000001,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000094] src='out OUT_DATA, a0' port=out 0x0011 <- 0x0000000A
+  T=007927 step=0 mode=MAIN state=EXEC_SYS pc=000098 ir=0x43000000 alu_out=0x00000294 addr_sel=000094 decoded=halt epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=75 stop=HALT regs=[zero=00000000,a0=0000000A,a1=00000000,a2=00000000,a3=00000000,t0=00000298,t1=00000000,t2=00000001,t3=00000035,t4=00000000,t5=00000001,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000094] src='halt'
+out_ticks: 7928
+out_stop_reason: HALT
+out_stdout: |
+  0xffffffff + 1 = 4294967296
+  0xffffffff * 0xffffffff = 18446744065119617025
+out_listing: |-
+  000000 - 0x00000040 - .word 64
+  000004 - 0x00000000 - .word 0
+  000008 - 0x00000000 - .word 0
+  00000C - 0x00000000 - .word 0
+  000010 - 0x00000000 - .word 0
+  000014 - 0x00000000 - .word 0
+  000018 - 0x00000000 - .word 0
+  00001C - 0x00000000 - .word 0
+  000020 - 0x00000000 - .word 0
+  000024 - 0x00000000 - .word 0
+  000028 - 0x00000000 - .word 0
+  00002C - 0x00000000 - .word 0
+  000030 - 0x00000000 - .word 0
+  000034 - 0x00000000 - .word 0
+  000038 - 0x00000000 - .word 0
+  00003C - 0x00000000 - .word 0
+  000040 - 0x14E00100 - lui sp, 256
+  000044 - 0x12EE0000 - ori sp, sp, 0
+  000048 - 0x14100000 - lui a0, 0
+  00004C - 0x12110144 - ori a0, a0, 324
+  000050 - 0x41000098 - jal 0x000098
+  000054 - 0x1450FFFF - lui t0, 65535
+  000058 - 0x1255FFFF - ori t0, t0, 65535
+  00005C - 0x10600001 - addi t1, zero, 1
+  000060 - 0x01256000 - add a1, t0, t1
+  000064 - 0x0E125000 - sltu a0, a1, t0
+  000068 - 0x410000D4 - jal 0x0000D4
+  00006C - 0x410000BC - jal 0x0000BC
+  000070 - 0x14100000 - lui a0, 0
+  000074 - 0x1211018C - ori a0, a0, 396
+  000078 - 0x41000098 - jal 0x000098
+  00007C - 0x1450FFFF - lui t0, 65535
+  000080 - 0x1255FFFF - ori t0, t0, 65535
+  000084 - 0x03255000 - mul a1, t0, t0
+  000088 - 0x04155000 - mulhu a0, t0, t0
+  00008C - 0x410000D4 - jal 0x0000D4
+  000090 - 0x410000BC - jal 0x0000BC
+  000094 - 0x43000000 - halt
+  000098 - 0x20510000 - lw t0, 0(a0)
+  00009C - 0x10610004 - addi t1, a0, 4
+  0000A0 - 0x30500014 - beq t0, zero, 20
+  0000A4 - 0x20760000 - lw t2, 0(t1)
+  0000A8 - 0x51700011 - out 0x0011, t2
+  0000AC - 0x10660004 - addi t1, t1, 4
+  0000B0 - 0x1055FFFF - addi t0, t0, -1
+  0000B4 - 0x400000A0 - j 0x0000A0
+  0000B8 - 0x420F0000 - jr ra
+  0000BC - 0x1010000A - addi a0, zero, 10
+  0000C0 - 0x51100011 - out 0x0011, a0
+  0000C4 - 0x420F0000 - jr ra
+  0000C8 - 0x01210000 - add a1, a0, zero
+  0000CC - 0x10100000 - addi a0, zero, 0
+  0000D0 - 0x400000D4 - j 0x0000D4
+  0000D4 - 0x14500000 - lui t0, 0
+  0000D8 - 0x125501F8 - ori t0, t0, 504
+  0000DC - 0x10600014 - addi t1, zero, 20
+  0000E0 - 0x10700000 - addi t2, zero, 0
+  0000E4 - 0x20950000 - lw t4, 0(t0)
+  0000E8 - 0x20A50004 - lw t5, 4(t0)
+  0000EC - 0x10800000 - addi t3, zero, 0
+  0000F0 - 0x34190020 - bltu a0, t4, 32
+  0000F4 - 0x34910004 - bltu t4, a0, 4
+  0000F8 - 0x342A0018 - bltu a1, t5, 24
+  0000FC - 0x0EB2A000 - sltu rv, a1, t5
+  000100 - 0x0222A000 - sub a1, a1, t5
+  000104 - 0x02119000 - sub a0, a0, t4
+  000108 - 0x0211B000 - sub a0, a0, rv
+  00010C - 0x10880001 - addi t3, t3, 1
+  000110 - 0x400000F0 - j 0x0000F0
+  000114 - 0x31700010 - bne t2, zero, 16
+  000118 - 0x3180000C - bne t3, zero, 12
+  00011C - 0x10B00001 - addi rv, zero, 1
+  000120 - 0x306B0004 - beq t1, rv, 4
+  000124 - 0x40000134 - j 0x000134
+  000128 - 0x10700001 - addi t2, zero, 1
+  00012C - 0x10880030 - addi t3, t3, 48
+  000130 - 0x51800011 - out 0x0011, t3
+  000134 - 0x10550008 - addi t0, t0, 8
+  000138 - 0x1066FFFF - addi t1, t1, -1
+  00013C - 0x3160FFA4 - bne t1, zero, -92
+  000140 - 0x420F0000 - jr ra
+  000144 - 0x00000011 - .word 17
+  000148 - 0x00000030 - .word 48
+  00014C - 0x00000078 - .word 120
+  000150 - 0x00000066 - .word 102
+  000154 - 0x00000066 - .word 102
+  000158 - 0x00000066 - .word 102
+  00015C - 0x00000066 - .word 102
+  000160 - 0x00000066 - .word 102
+  000164 - 0x00000066 - .word 102
+  000168 - 0x00000066 - .word 102
+  00016C - 0x00000066 - .word 102
+  000170 - 0x00000020 - .word 32
+  000174 - 0x0000002B - .word 43
+  000178 - 0x00000020 - .word 32
+  00017C - 0x00000031 - .word 49
+  000180 - 0x00000020 - .word 32
+  000184 - 0x0000003D - .word 61
+  000188 - 0x00000020 - .word 32
+  00018C - 0x0000001A - .word 26
+  000190 - 0x00000030 - .word 48
+  000194 - 0x00000078 - .word 120
+  000198 - 0x00000066 - .word 102
+  00019C - 0x00000066 - .word 102
+  0001A0 - 0x00000066 - .word 102
+  0001A4 - 0x00000066 - .word 102
+  0001A8 - 0x00000066 - .word 102
+  0001AC - 0x00000066 - .word 102
+  0001B0 - 0x00000066 - .word 102
+  0001B4 - 0x00000066 - .word 102
+  0001B8 - 0x00000020 - .word 32
+  0001BC - 0x0000002A - .word 42
+  0001C0 - 0x00000020 - .word 32
+  0001C4 - 0x00000030 - .word 48
+  0001C8 - 0x00000078 - .word 120
+  0001CC - 0x00000066 - .word 102
+  0001D0 - 0x00000066 - .word 102
+  0001D4 - 0x00000066 - .word 102
+  0001D8 - 0x00000066 - .word 102
+  0001DC - 0x00000066 - .word 102
+  0001E0 - 0x00000066 - .word 102
+  0001E4 - 0x00000066 - .word 102
+  0001E8 - 0x00000066 - .word 102
+  0001EC - 0x00000020 - .word 32
+  0001F0 - 0x0000003D - .word 61
+  0001F4 - 0x00000020 - .word 32
+  0001F8 - 0x8AC72304 - .word 2328306436
+  0001FC - 0x89E80000 - .word 2313682944
+  000200 - 0x0DE0B6B3 - .word 232830643
+  000204 - 0xA7640000 - .word 2808348672
+  000208 - 0x01634578 - .word 23283064
+  00020C - 0x5D8A0000 - .word 1569325056
+  000210 - 0x002386F2 - .word 2328306
+  000214 - 0x6FC10000 - .word 1874919424
+  000218 - 0x00038D7E - .word 232830
+  00021C - 0xA4C68000 - .word 2764472320
+  000220 - 0x00005AF3 - .word 23283
+  000224 - 0x107A4000 - .word 276447232
+  000228 - 0x00000918 - .word 2328
+  00022C - 0x4E72A000 - .word 1316134912
+  000230 - 0x000000E8 - .word 232
+  000234 - 0xD4A51000 - .word 3567587328
+  000238 - 0x00000017 - .word 23
+  00023C - 0x4876E800 - .word 1215752192
+  000240 - 0x00000002 - .word 2
+  000244 - 0x540BE400 - .word 1410065408
+  000248 - 0x00000000 - .word 0
+  00024C - 0x3B9ACA00 - .word 1000000000
+  000250 - 0x00000000 - .word 0
+  000254 - 0x05F5E100 - .word 100000000
+  000258 - 0x00000000 - .word 0
+  00025C - 0x00989680 - .word 10000000
+  000260 - 0x00000000 - .word 0
+  000264 - 0x000F4240 - .word 1000000
+  000268 - 0x00000000 - .word 0
+  00026C - 0x000186A0 - .word 100000
+  000270 - 0x00000000 - .word 0
+  000274 - 0x00002710 - .word 10000
+  000278 - 0x00000000 - .word 0
+  00027C - 0x000003E8 - .word 1000
+  000280 - 0x00000000 - .word 0
+  000284 - 0x00000064 - .word 100
+  000288 - 0x00000000 - .word 0
+  00028C - 0x0000000A - .word 10
+  000290 - 0x00000000 - .word 0
+  000294 - 0x00000001 - .word 1
+out_code_base64: 
+  TDRNQwABAAMAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAQQAAAABFOABABLuAAAUEAAAEhEBREEAAJgUUP//ElX//xBgAAEBJWAADhJQAEEAANRBAAC8FBAAABIRAYxBAACYFFD//xJV//8DJVAABBVQAEEAANRBAAC8QwAAACBRAAAQYQAEMFAAFCB2AABRcAAREGYABBBV//9AAACgQg8AABAQAApREAARQg8AAAEhAAAQEAAAQAAA1BRQAAASVQH4EGAAFBBwAAAglQAAIKUABBCAAAA0GQAgNJEABDQqABgOsqAAAiKgAAIRkAACEbAAEIgAAUAAAPAxcAAQMYAADBCwAAEwawAEQAABNBBwAAEQiAAwUYAAERBVAAgQZv//MWD/pEIPAAAAAAFEAAABVAAAAAAAAAARAAAAMAAAAHgAAABmAAAAZgAAAGYAAABmAAAAZgAAAGYAAABmAAAAZgAAACAAAAArAAAAIAAAADEAAAAgAAAAPQAAACAAAAAaAAAAMAAAAHgAAABmAAAAZgAAAGYAAABmAAAAZgAAAGYAAABmAAAAZgAAACAAAAAqAAAAIAAAADAAAAB4AAAAZgAAAGYAAABmAAAAZgAAAGYAAABmAAAAZgAAAGYAAAAgAAAAPQAAACCKxyMEiegAAA3gtrOnZAAAAWNFeF2KAAAAI4byb8EAAAADjX6kxoAAAABa8xB6QAAAAAkYTnKgAAAAAOjUpRAAAAAAF0h26AAAAAACVAvkAAAAAAA7msoAAAAAAAX14QAAAAAAAJiWgAAAAAAAD0JAAAAAAAABhqAAAAAAAAAnEAAAAAAAAAPoAAAAAAAAAGQAAAAAAAAACgAAAAAAAAAB

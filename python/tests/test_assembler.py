@@ -134,11 +134,30 @@ def test_expands_conditionals_macros_and_local_labels() -> None:
         ".section .text\n.org 0x40\nbeq zero, zero, 0x41\n",
         ".section .data\n.space 1\n.word 0\n",
         ".section .text\nli a0, later\nlater:\n    nop\n",
+        ".section .text\n.org 0x40\nla a0, 0x01000000\n",
+        ".section .vectors\n.word 0\n.word 0\n.word 1\n",
+        '.section .rodata\n.pstr "é"\n',
     ],
 )
 def test_rejects_required_assembler_errors(source: str) -> None:
     with pytest.raises(AssemblerError):
         assemble(source)
+
+
+def test_pstr_allows_non_ascii_bytes_only_through_hex_escape() -> None:
+    result = assemble(
+        dedent(
+            r"""
+            .section .rodata
+            msg:
+                .pstr "\xE9"
+            """
+        )
+    )
+
+    segment = decode_binary_image(result.binary)[0]
+    assert word_from_bytes(segment.data[0:WORD_BYTES]) == 1
+    assert word_from_bytes(segment.data[WORD_BYTES : WORD_BYTES * 2]) == 0xE9
 
 
 def test_asm_cli_public_interface_writes_binary_listing_and_map(tmp_path: Path) -> None:
