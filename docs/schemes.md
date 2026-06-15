@@ -2,12 +2,18 @@
 
 The submitted schemes are intentionally split:
 
-- [`datapath.mmd`](datapath.mmd) shows where values can flow: register file,
+- [`datapath.drawio`](datapath.drawio) shows where values can flow: register file,
   operand muxes, ALU, `ALU_OUT`, writeback mux, unified cache, unified memory,
   and ports.
-- [`control_unit.mmd`](control_unit.mmd) shows why a signal bundle is selected
+- [`control_unit.drawio`](control_unit.drawio) shows why a signal bundle is selected
   on each tick: opcode decoder, hardwired FSM, `step`, `PC`, `EPC`, `CAUSE`,
   `STATUS`, cache-ready feedback, and precise interrupt entry.
+
+SVG previews are committed for quick review:
+
+![DataPath](datapath.svg)
+
+![Control Unit](control_unit.svg)
 
 The split keeps data movement separate from control decisions. A combined CPU
 diagram would hide the thing the defense normally checks: DataPath has possible
