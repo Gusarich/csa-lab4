@@ -1,7 +1,11 @@
-PHONY: lint-fix lint
+.PHONY: lint-fix lint
+
+MARKDOWNLINT_VERSION ?= 0.48.0
+NPM_CONFIG_CACHE ?= /tmp/csa-lab4-npm-cache
+MARKDOWNLINT = npm_config_cache="$(NPM_CONFIG_CACHE)" npx --yes markdownlint-cli@$(MARKDOWNLINT_VERSION)
 
 lint-fix:
-	markdownlint -c .markdownlint.yaml --fix .
+	$(MARKDOWNLINT) . --config .markdownlint.yaml --ignore "TASK/**" --fix
 
 lint:
-	markdownlint -c .markdownlint.yaml .
+	$(MARKDOWNLINT) . --config .markdownlint.yaml --ignore "TASK/**"

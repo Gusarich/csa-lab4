@@ -18,11 +18,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: markdownlint-cli
-        uses: nosborn/github-action-markdown-cli@v3.3.0
+      - name: Set up Node
+        uses: actions/setup-node@v6
         with:
-          files: "**/*.md"
-          config_file: .markdownlint.yaml
-          dot: true
+          node-version: 24
+
+      - name: Run markdownlint
+        env:
+          npm_config_cache: ${{ runner.temp }}/npm-cache
+        run: npx --yes markdownlint-cli@0.48.0 "**/*.md" --config .markdownlint.yaml --ignore "TASK/**"
