@@ -18,6 +18,7 @@ from isa import (
     InstructionFormat,
     Opcode,
     decode_instruction,
+    disassemble,
 )
 
 WORD_MASK = 0xFFFFFFFF
@@ -79,6 +80,8 @@ class TraceEntry:
     state: ControlState
     pc: int
     ir: int
+    alu_out: int
+    selected_address: int
     decoded: str
     source: str
     registers: tuple[int, ...]
@@ -86,6 +89,8 @@ class TraceEntry:
     cause: int
     status: int
     irq_line: bool
+    input_status: int
+    output_length: int
     cache: CacheTick | None
     input_event: AppliedInputEvent | None
     port_event: str
@@ -396,6 +401,8 @@ class ControlUnit:
             state=self.state,
             pc=self.pc,
             ir=self.datapath.ir,
+            alu_out=snapshot.alu_out,
+            selected_address=snapshot.selected_address,
             decoded=self._decoded_text(),
             source=self.source_map.get(self.instruction_address, ""),
             registers=snapshot.registers,
@@ -403,6 +410,8 @@ class ControlUnit:
             cause=self.cause,
             status=self.status,
             irq_line=snapshot.irq_line,
+            input_status=snapshot.input_status,
+            output_length=snapshot.output_length,
             cache=cache_event,
             input_event=input_event,
             port_event=self.port_event,
@@ -423,7 +432,7 @@ class ControlUnit:
     def _decoded_text(self) -> str:
         if self.state in {ControlState.RESET_VECTOR, ControlState.FAULT, ControlState.HALTED}:
             return ""
-        return self.instruction.opcode.value
+        return disassemble(self.instruction)
 
 
 def _execution_state(opcode: Opcode) -> ControlState:

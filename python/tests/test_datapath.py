@@ -86,6 +86,9 @@ def test_cache_and_port_signals_are_forwarded() -> None:
     assert datapath.port_read(IN_DATA) == ord("A")
     datapath.port_write(OUT_DATA, ord("B"))
     assert datapath.output_text() == "B"
+    snapshot = datapath.snapshot()
+    assert snapshot.input_status == 0
+    assert snapshot.output_length == 1
 
 
 def test_helpers_for_immediates_and_word_addresses() -> None:

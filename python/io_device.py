@@ -167,6 +167,14 @@ class PortController:
         """Return accumulated output."""
         return self.output_device.text()
 
+    def input_status(self) -> int:
+        """Return the current IN_STATUS bits without changing device state."""
+        return self.input_device.read_status()
+
+    def output_length(self) -> int:
+        """Return the number of bytes written to OUT_DATA."""
+        return len(self.output_device.buffer)
+
 
 def parse_input_schedule(text: str) -> list[InputEvent]:
     """Parse a trap input schedule file."""

@@ -65,11 +65,15 @@ def format_trace_entry(entry: TraceEntry) -> str:
         "state={}".format(entry.state.value),
         "pc={:06X}".format(entry.pc),
         "ir=0x{:08X}".format(entry.ir),
+        "alu_out=0x{:08X}".format(entry.alu_out),
+        "addr_sel={:06X}".format(entry.selected_address),
         "decoded={}".format(entry.decoded or "-"),
         "epc={:06X}".format(entry.epc),
         "cause={}".format(entry.cause),
         "status={}".format(_format_status(entry.status)),
         "irq={}".format(int(entry.irq_line)),
+        "in_status={}".format(_format_input_status(entry.input_status)),
+        "out_len={}".format(entry.output_length),
         "stop={}".format(entry.stop_reason.value),
         "regs={}".format(_format_registers(entry.registers)),
     ]
@@ -114,6 +118,10 @@ def _read_source_map(path: Path) -> dict[int, str]:
 
 def _format_status(status: int) -> str:
     return "IE:{} IN_IRQ:{}".format(status & 1, (status >> 1) & 1)
+
+
+def _format_input_status(status: int) -> str:
+    return "READY:{} EOF:{} OVERRUN:{}".format(status & 1, (status >> 1) & 1, (status >> 2) & 1)
 
 
 def _format_registers(registers: tuple[int, ...]) -> str:

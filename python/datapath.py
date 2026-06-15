@@ -55,6 +55,8 @@ class DataPathSnapshot:
     ir: int
     alu_out: int
     selected_address: int
+    input_status: int
+    output_length: int
     output: str
     irq_line: bool
 
@@ -144,6 +146,14 @@ class DataPath:
         """Return accumulated output."""
         return self.ports.output_text()
 
+    def input_status(self) -> int:
+        """Return current input status bits."""
+        return self.ports.input_status()
+
+    def output_length(self) -> int:
+        """Return output buffer length."""
+        return self.ports.output_length()
+
     def alu_execute(self, operation: AluOperation, lhs: int, rhs: int) -> int:
         """Execute one combinational ALU operation."""
         lhs &= WORD_MASK
@@ -160,6 +170,8 @@ class DataPath:
             ir=self.ir,
             alu_out=self.alu_out,
             selected_address=self.selected_address,
+            input_status=self.input_status(),
+            output_length=self.output_length(),
             output=self.output_text(),
             irq_line=self.irq_line(),
         )
