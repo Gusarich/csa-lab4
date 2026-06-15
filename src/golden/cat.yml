@@ -1,0 +1,328 @@
+in_source: |
+  .equ STACK_INIT, 0x01000000
+  .equ RX_CAP, 128
+  .equ FLAG_EOF, 1
+  .equ FLAG_DEVICE_OVERRUN, 2
+  .equ FLAG_RING_OVERFLOW, 4
+
+  .section .vectors
+  .org 0x000000
+  .word _start
+  .word irq_input
+  .space 56
+
+  .section .text
+  .org 0x000040
+  .macro push reg
+      addi sp, sp, -4
+      sw reg, 0(sp)
+  .endm
+
+  .macro pop reg
+      lw reg, 0(sp)
+      addi sp, sp, 4
+  .endm
+
+  _start:
+      li sp, STACK_INIT
+      ei
+
+  cat_loop:
+      call rx_pop
+      bne a0, zero, cat_emit
+      la t0, rx_flags
+      lw t1, 0(t0)
+      andi t1, t1, FLAG_EOF
+      bne t1, zero, done
+      j cat_loop
+
+  cat_emit:
+      out OUT_DATA, rv
+      j cat_loop
+
+  done:
+      halt
+
+  rx_pop:
+      di
+      la t0, rx_count
+      lw t1, 0(t0)
+      beq t1, zero, rx_pop_empty
+
+      la t2, rx_head
+      lw t3, 0(t2)
+      li t4, 2
+      sll t4, t3, t4
+      la t5, rx_buf
+      add t5, t5, t4
+      lw rv, 0(t5)
+
+      addi t3, t3, 1
+      li t4, RX_CAP
+      bltu t3, t4, rx_pop_head_ok
+      li t3, 0
+  rx_pop_head_ok:
+      sw t3, 0(t2)
+      addi t1, t1, -1
+      sw t1, 0(t0)
+      li a0, 1
+      ei
+      ret
+
+  rx_pop_empty:
+      li a0, 0
+      ei
+      ret
+
+  irq_input:
+      push t0
+      push t1
+      push t2
+      push t3
+      push t4
+      push t5
+
+      in k0, IN_STATUS
+      andi k1, k0, 4
+      beq k1, zero, irq_ready
+      la t0, rx_flags
+      lw t1, 0(t0)
+      ori t1, t1, FLAG_DEVICE_OVERRUN
+      sw t1, 0(t0)
+      li k0, 2
+      out IN_CTRL, k0
+
+  irq_ready:
+      in k0, IN_STATUS
+      andi k1, k0, 1
+      beq k1, zero, irq_eof
+      in k0, IN_DATA
+
+      la t0, rx_count
+      lw t1, 0(t0)
+      li t2, RX_CAP
+      bgeu t1, t2, irq_ring_full
+
+      la t3, rx_tail
+      lw t4, 0(t3)
+      li t5, 2
+      sll t5, t4, t5
+      la t2, rx_buf
+      add t2, t2, t5
+      sw k0, 0(t2)
+
+      addi t4, t4, 1
+      li t5, RX_CAP
+      bltu t4, t5, irq_tail_ok
+      li t4, 0
+  irq_tail_ok:
+      sw t4, 0(t3)
+      addi t1, t1, 1
+      sw t1, 0(t0)
+      j irq_eof
+
+  irq_ring_full:
+      la t0, rx_flags
+      lw t1, 0(t0)
+      ori t1, t1, FLAG_RING_OVERFLOW
+      sw t1, 0(t0)
+
+  irq_eof:
+      in k0, IN_STATUS
+      andi k1, k0, 2
+      beq k1, zero, irq_done
+      la t0, rx_flags
+      lw t1, 0(t0)
+      ori t1, t1, FLAG_EOF
+      sw t1, 0(t0)
+      li k0, 1
+      out IN_CTRL, k0
+
+  irq_done:
+      pop t5
+      pop t4
+      pop t3
+      pop t2
+      pop t1
+      pop t0
+      iret
+
+  .section .data
+  rx_head:
+      .word 0
+  rx_tail:
+      .word 0
+  rx_count:
+      .word 0
+  rx_flags:
+      .word 0
+
+  .section .bss
+  rx_buf:
+      .space 512
+in_input_schedule: |
+  200 'f'
+  2000 'o'
+  3800 'o'
+  5600 '\n'
+  7400 EOF
+in_args:
+  max_ticks: 200000
+in_log_patterns:
+- state=IRQ_ENTER
+- src='in k0, IN_DATA' port=in 0x0001 -> 0x00000066
+- src='out OUT_DATA, rv' port=out 0x0011 <- 0x00000066
+- src='out OUT_DATA, rv' port=out 0x0011 <- 0x0000006F
+- src='out OUT_DATA, rv' port=out 0x0011 <- 0x0000000A
+- stop=HALT
+out_ticks: 9413
+out_stop_reason: HALT
+out_stdout: |
+  foo
+out_listing: |-
+  000000 - 0x00000040 - .word 64
+  000004 - 0x000000E4 - .word 228
+  000008 - 0x00000000 - .word 0
+  00000C - 0x00000000 - .word 0
+  000010 - 0x00000000 - .word 0
+  000014 - 0x00000000 - .word 0
+  000018 - 0x00000000 - .word 0
+  00001C - 0x00000000 - .word 0
+  000020 - 0x00000000 - .word 0
+  000024 - 0x00000000 - .word 0
+  000028 - 0x00000000 - .word 0
+  00002C - 0x00000000 - .word 0
+  000030 - 0x00000000 - .word 0
+  000034 - 0x00000000 - .word 0
+  000038 - 0x00000000 - .word 0
+  00003C - 0x00000000 - .word 0
+  000040 - 0x14E00100 - lui sp, 256
+  000044 - 0x12EE0000 - ori sp, sp, 0
+  000048 - 0x60000000 - ei
+  00004C - 0x41000078 - jal 0x000078
+  000050 - 0x31100018 - bne a0, zero, 24
+  000054 - 0x14500000 - lui t0, 0
+  000058 - 0x12550220 - ori t0, t0, 544
+  00005C - 0x20650000 - lw t1, 0(t0)
+  000060 - 0x11660001 - andi t1, t1, 1
+  000064 - 0x3160000C - bne t1, zero, 12
+  000068 - 0x4000004C - j 0x00004C
+  00006C - 0x51B00011 - out 0x0011, rv
+  000070 - 0x4000004C - j 0x00004C
+  000074 - 0x43000000 - halt
+  000078 - 0x61000000 - di
+  00007C - 0x14500000 - lui t0, 0
+  000080 - 0x1255021C - ori t0, t0, 540
+  000084 - 0x20650000 - lw t1, 0(t0)
+  000088 - 0x3060004C - beq t1, zero, 76
+  00008C - 0x14700000 - lui t2, 0
+  000090 - 0x12770214 - ori t2, t2, 532
+  000094 - 0x20870000 - lw t3, 0(t2)
+  000098 - 0x10900002 - addi t4, zero, 2
+  00009C - 0x0A989000 - sll t4, t3, t4
+  0000A0 - 0x14A00000 - lui t5, 0
+  0000A4 - 0x12AA0224 - ori t5, t5, 548
+  0000A8 - 0x01AA9000 - add t5, t5, t4
+  0000AC - 0x20BA0000 - lw rv, 0(t5)
+  0000B0 - 0x10880001 - addi t3, t3, 1
+  0000B4 - 0x10900080 - addi t4, zero, 128
+  0000B8 - 0x34890004 - bltu t3, t4, 4
+  0000BC - 0x10800000 - addi t3, zero, 0
+  0000C0 - 0x21870000 - sw t3, 0(t2)
+  0000C4 - 0x1066FFFF - addi t1, t1, -1
+  0000C8 - 0x21650000 - sw t1, 0(t0)
+  0000CC - 0x10100001 - addi a0, zero, 1
+  0000D0 - 0x60000000 - ei
+  0000D4 - 0x420F0000 - jr ra
+  0000D8 - 0x10100000 - addi a0, zero, 0
+  0000DC - 0x60000000 - ei
+  0000E0 - 0x420F0000 - jr ra
+  0000E4 - 0x10EEFFFC - addi sp, sp, -4
+  0000E8 - 0x215E0000 - sw t0, 0(sp)
+  0000EC - 0x10EEFFFC - addi sp, sp, -4
+  0000F0 - 0x216E0000 - sw t1, 0(sp)
+  0000F4 - 0x10EEFFFC - addi sp, sp, -4
+  0000F8 - 0x217E0000 - sw t2, 0(sp)
+  0000FC - 0x10EEFFFC - addi sp, sp, -4
+  000100 - 0x218E0000 - sw t3, 0(sp)
+  000104 - 0x10EEFFFC - addi sp, sp, -4
+  000108 - 0x219E0000 - sw t4, 0(sp)
+  00010C - 0x10EEFFFC - addi sp, sp, -4
+  000110 - 0x21AE0000 - sw t5, 0(sp)
+  000114 - 0x50C00000 - in k0, 0x0000
+  000118 - 0x11DC0004 - andi k1, k0, 4
+  00011C - 0x30D0001C - beq k1, zero, 28
+  000120 - 0x14500000 - lui t0, 0
+  000124 - 0x12550220 - ori t0, t0, 544
+  000128 - 0x20650000 - lw t1, 0(t0)
+  00012C - 0x12660002 - ori t1, t1, 2
+  000130 - 0x21650000 - sw t1, 0(t0)
+  000134 - 0x10C00002 - addi k0, zero, 2
+  000138 - 0x51C00002 - out 0x0002, k0
+  00013C - 0x50C00000 - in k0, 0x0000
+  000140 - 0x11DC0001 - andi k1, k0, 1
+  000144 - 0x30D00070 - beq k1, zero, 112
+  000148 - 0x50C00001 - in k0, 0x0001
+  00014C - 0x14500000 - lui t0, 0
+  000150 - 0x1255021C - ori t0, t0, 540
+  000154 - 0x20650000 - lw t1, 0(t0)
+  000158 - 0x10700080 - addi t2, zero, 128
+  00015C - 0x35670044 - bgeu t1, t2, 68
+  000160 - 0x14800000 - lui t3, 0
+  000164 - 0x12880218 - ori t3, t3, 536
+  000168 - 0x20980000 - lw t4, 0(t3)
+  00016C - 0x10A00002 - addi t5, zero, 2
+  000170 - 0x0AA9A000 - sll t5, t4, t5
+  000174 - 0x14700000 - lui t2, 0
+  000178 - 0x12770224 - ori t2, t2, 548
+  00017C - 0x0177A000 - add t2, t2, t5
+  000180 - 0x21C70000 - sw k0, 0(t2)
+  000184 - 0x10990001 - addi t4, t4, 1
+  000188 - 0x10A00080 - addi t5, zero, 128
+  00018C - 0x349A0004 - bltu t4, t5, 4
+  000190 - 0x10900000 - addi t4, zero, 0
+  000194 - 0x21980000 - sw t4, 0(t3)
+  000198 - 0x10660001 - addi t1, t1, 1
+  00019C - 0x21650000 - sw t1, 0(t0)
+  0001A0 - 0x400001B8 - j 0x0001B8
+  0001A4 - 0x14500000 - lui t0, 0
+  0001A8 - 0x12550220 - ori t0, t0, 544
+  0001AC - 0x20650000 - lw t1, 0(t0)
+  0001B0 - 0x12660004 - ori t1, t1, 4
+  0001B4 - 0x21650000 - sw t1, 0(t0)
+  0001B8 - 0x50C00000 - in k0, 0x0000
+  0001BC - 0x11DC0002 - andi k1, k0, 2
+  0001C0 - 0x30D0001C - beq k1, zero, 28
+  0001C4 - 0x14500000 - lui t0, 0
+  0001C8 - 0x12550220 - ori t0, t0, 544
+  0001CC - 0x20650000 - lw t1, 0(t0)
+  0001D0 - 0x12660001 - ori t1, t1, 1
+  0001D4 - 0x21650000 - sw t1, 0(t0)
+  0001D8 - 0x10C00001 - addi k0, zero, 1
+  0001DC - 0x51C00002 - out 0x0002, k0
+  0001E0 - 0x20AE0000 - lw t5, 0(sp)
+  0001E4 - 0x10EE0004 - addi sp, sp, 4
+  0001E8 - 0x209E0000 - lw t4, 0(sp)
+  0001EC - 0x10EE0004 - addi sp, sp, 4
+  0001F0 - 0x208E0000 - lw t3, 0(sp)
+  0001F4 - 0x10EE0004 - addi sp, sp, 4
+  0001F8 - 0x207E0000 - lw t2, 0(sp)
+  0001FC - 0x10EE0004 - addi sp, sp, 4
+  000200 - 0x206E0000 - lw t1, 0(sp)
+  000204 - 0x10EE0004 - addi sp, sp, 4
+  000208 - 0x205E0000 - lw t0, 0(sp)
+  00020C - 0x10EE0004 - addi sp, sp, 4
+  000210 - 0x62000000 - iret
+  000214 - 0x00000000 - .word 0
+  000218 - 0x00000000 - .word 0
+  00021C - 0x00000000 - .word 0
+  000220 - 0x00000000 - .word 0
+out_code_base64:
+  TDRNQwABAAQAAAAAAAAAQAAAAAAAAABAAAAA5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAdQAAAABFOABABLuAABgAAAAQQAAeDEQABgUUAAAElUCICBlAAARZgABMWAADEAAAExRsAARQAAATEMAAABhAAAAFFAAABJVAhwgZQAAMGAATBRwAAASdwIUIIcAABCQAAIKmJAAFKAAABKqAiQBqpAAILoAABCIAAEQkACANIkABBCAAAAhhwAAEGb//yFlAAAQEAABYAAAAEIPAAAQEAAAYAAAAEIPAAAQ7v/8IV4AABDu//whbgAAEO7//CF+AAAQ7v/8IY4AABDu//whngAAEO7//CGuAABQwAAAEdwABDDQABwUUAAAElUCICBlAAASZgACIWUAABDAAAJRwAACUMAAABHcAAEw0ABwUMAAARRQAAASVQIcIGUAABBwAIA1ZwBEFIAAABKIAhggmAAAEKAAAgqpoAAUcAAAEncCJAF3oAAhxwAAEJkAARCgAIA0mgAEEJAAACGYAAAQZgABIWUAAEAAAbgUUAAAElUCICBlAAASZgAEIWUAAFDAAAAR3AACMNAAHBRQAAASVQIgIGUAABJmAAEhZQAAEMAAAVHAAAIgrgAAEO4ABCCeAAAQ7gAEII4AABDuAAQgfgAAEO4ABCBuAAAQ7gAEIF4AABDuAARiAAAAAAACFAAAABAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAiQAAAIAAAAABg==
+out_log: |-
+  T=000264 step=0 mode=IRQ state=IRQ_ENTER pc=0000E0 ir=0x60000000 alu_out=0x0000021C addr_sel=0000DC decoded=ei epc=0000E0 cause=1 status=IE:0 IN_IRQ:1 irq=1 in_status=READY:1 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=0000021C,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000050] src='ei'
+  T=000949 step=0 mode=IRQ state=EXEC_IO pc=00014C ir=0x50C00001 alu_out=0x00FFFFE8 addr_sel=000148 decoded=in k0, 0x0001 epc=0000E0 cause=1 status=IE:0 IN_IRQ:1 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=0000021C,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000066,k1=00000001,sp=00FFFFE8,ra=00000050] src='in k0, IN_DATA' port=in 0x0001 -> 0x00000066
+  T=003759 step=0 mode=MAIN state=EXEC_IO pc=000070 ir=0x51B00011 alu_out=0x0000021C addr_sel=00006C decoded=out 0x0011, rv epc=000050 cause=1 status=IE:1 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=1 stop=RUNNING regs=[zero=00000000,a0=00000001,a1=00000000,a2=00000000,a3=00000000,t0=0000021C,t1=00000001,t2=00000214,t3=00000001,t4=00000080,t5=00000224,rv=00000066,k0=00000000,k1=00000000,sp=01000000,ra=00000050] src='out OUT_DATA, rv' port=out 0x0011 <- 0x00000066
+  T=005589 step=0 mode=MAIN state=EXEC_IO pc=000070 ir=0x51B00011 alu_out=0x00FFFFFC addr_sel=00006C decoded=out 0x0011, rv epc=0000D4 cause=1 status=IE:1 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=2 stop=RUNNING regs=[zero=00000000,a0=00000001,a1=00000000,a2=00000000,a3=00000000,t0=0000021C,t1=00000000,t2=00000214,t3=00000002,t4=00000080,t5=00000228,rv=0000006F,k0=00000000,k1=00000000,sp=01000000,ra=00000050] src='out OUT_DATA, rv' port=out 0x0011 <- 0x0000006F
+  T=009336 step=0 mode=MAIN state=EXEC_IO pc=000070 ir=0x51B00011 alu_out=0x0000021C addr_sel=00006C decoded=out 0x0011, rv epc=0000D4 cause=1 status=IE:1 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=4 stop=RUNNING regs=[zero=00000000,a0=00000001,a1=00000000,a2=00000000,a3=00000000,t0=0000021C,t1=00000000,t2=00000214,t3=00000004,t4=00000080,t5=00000230,rv=0000000A,k0=00000001,k1=00000002,sp=01000000,ra=00000050] src='out OUT_DATA, rv' port=out 0x0011 <- 0x0000000A
+  T=009412 step=0 mode=MAIN state=EXEC_SYS pc=000078 ir=0x43000000 alu_out=0x00000220 addr_sel=000074 decoded=halt epc=0000D4 cause=1 status=IE:1 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=4 stop=HALT regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000220,t1=00000001,t2=00000214,t3=00000004,t4=00000080,t5=00000230,rv=0000000A,k0=00000001,k1=00000002,sp=01000000,ra=00000050] src='halt'

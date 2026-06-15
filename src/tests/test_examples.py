@@ -11,6 +11,7 @@ EXAMPLE_SOURCES = sorted(EXAMPLES.glob("*.asm"))
 GOLDEN = Path(__file__).parents[1] / "golden"
 REQUIRED_GOLDENS = {
     "hello.yml",
+    "cat.yml",
     "hello_user_name.yml",
     "hello_user_name_long.yml",
     "sort.yml",

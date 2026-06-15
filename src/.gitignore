@@ -1,12 +1,9 @@
-.DS_Store
-TASK/
-
 *.out
+.fleet
 .coverage
 __pycache__/
-.pytest_cache/
 .mypy_cache/
+.pytest_cache/
 .ruff_cache/
 .venv/
-.fleet/
 out/

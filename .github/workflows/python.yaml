@@ -6,14 +6,14 @@ on:
       - main
     paths:
       - ".github/workflows/*"
-      - "python/**"
+      - "src/**"
 
 permissions:
   contents: read
 
 defaults:
   run:
-    working-directory: ./python
+    working-directory: ./src
 
 jobs:
   test:
