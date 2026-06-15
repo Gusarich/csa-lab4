@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -72,7 +74,6 @@ def test_double_precision_example_prints_u64_results() -> None:
         ("100\n", "25164150\n", 100_000),
         ("0\n", "0\n", 100_000),
         ("1\n", "0\n", 100_000),
-        ("92681\n", "18446160229542257100\n", 2_500_000),
         ("92682\n", "ERR_RANGE\n", 100_000),
         ("abc\n", "ERR_INPUT\n", 100_000),
         ("\n", "ERR_INPUT\n", 100_000),
@@ -83,6 +84,32 @@ def test_prob2_example_handles_required_cases(source: str, expected: str, max_ti
 
     assert result.stop_reason == StopReason.HALT
     assert result.stdout == expected
+
+
+def test_prob2_example_handles_u32_boundary_via_cli(tmp_path: Path) -> None:
+    program = tmp_path / "prob2.bin"
+    schedule = tmp_path / "prob2.input"
+    assembly = assemble((EXAMPLES / "prob2.asm").read_text(encoding="utf-8"))
+    program.write_bytes(assembly.binary)
+    schedule.write_text(_schedule_for_text("92681\n"), encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(EXAMPLES.parent / "machine.py"),
+            str(program),
+            str(schedule),
+            "--max-ticks",
+            "2500000",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stderr == ""
+    assert completed.stdout.startswith("18446160229542257100\n")
+    assert "stop reason: HALT\n" in completed.stdout
 
 
 def test_cache_examples_show_locality_and_conflicts() -> None:

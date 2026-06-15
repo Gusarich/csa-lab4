@@ -105,9 +105,16 @@ class SimulationResult:
 class ControlUnit:
     """Hardwired Control Unit that drives a passive DataPath."""
 
-    def __init__(self, datapath: DataPath, source_map: dict[int, str] | None = None) -> None:
+    def __init__(
+        self,
+        datapath: DataPath,
+        source_map: dict[int, str] | None = None,
+        *,
+        keep_log: bool = True,
+    ) -> None:
         self.datapath = datapath
         self.source_map = source_map or {}
+        self.keep_log = keep_log
         self.pc = 0
         self.epc = 0
         self.cause = 0
@@ -129,7 +136,8 @@ class ControlUnit:
         input_event = self.datapath.apply_input_tick(self.tick_counter)
         cache_event = self._perform_state_tick()
         entry = self._trace_entry(current_step, input_event, cache_event)
-        self.log.append(entry)
+        if self.keep_log:
+            self.log.append(entry)
         self._advance_step(current_state)
         self.tick_counter += 1
         return entry

@@ -23,6 +23,7 @@ def simulate(
     *,
     max_ticks: int = DEFAULT_MAX_TICKS,
     source_map: dict[int, str] | None = None,
+    keep_log: bool = True,
 ) -> SimulationResult:
     """Run a binary image with a trap input schedule."""
     segments = decode_binary_image(program)
@@ -30,7 +31,7 @@ def simulate(
     datapath = DataPath.from_segments(segments, ports)
     from control_unit import ControlUnit
 
-    return ControlUnit(datapath, source_map).run(max_ticks)
+    return ControlUnit(datapath, source_map, keep_log=keep_log).run(max_ticks)
 
 
 def main(
@@ -48,6 +49,7 @@ def main(
         Path(input_schedule_file).read_text(encoding="utf-8"),
         max_ticks=max_ticks,
         source_map=source_map,
+        keep_log=log_file is not None,
     )
     if log_file is not None:
         _write_trace(Path(log_file), result.log)
