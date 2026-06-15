@@ -1,0 +1,51 @@
+flowchart LR
+    subgraph control["Control Unit values"]
+        cu_pc["PC"]
+        cu_vector["Vector address"]
+        cu_signals["Control signals"]
+    end
+
+    subgraph datapath["Passive DataPath"]
+        addr_mux["Cache address MUX"]
+        ir["IR latch"]
+        rf["Register File r0..r15\nwrite decoder"]
+        imm["Immediate generator"]
+        a_mux["A operand MUX"]
+        b_mux["B operand MUX"]
+        alu["ALU\nsingle-tick functional block"]
+        alu_out["ALU_OUT latch"]
+        wb_mux["Writeback MUX"]
+        cache["Unified direct-mapped cache"]
+        ports["Port I/O unit"]
+    end
+
+    subgraph memory["Unified memory"]
+        mem["Byte memory\none port"]
+    end
+
+    cu_pc --> addr_mux
+    cu_vector --> addr_mux
+    alu_out --> addr_mux
+    addr_mux --> cache
+    cache <--> mem
+
+    cache --> ir
+    ir -->|"instruction word"| cu_signals
+
+    rf --> a_mux
+    rf --> b_mux
+    imm --> b_mux
+    a_mux --> alu
+    b_mux --> alu
+    alu --> alu_out
+    alu_out --> wb_mux
+
+    cache --> wb_mux
+    ports --> wb_mux
+    cu_pc --> wb_mux
+    wb_mux --> rf
+
+    rf --> cache
+    rf --> ports
+    ports -->|"IRQ line"| cu_signals
+    cu_signals -.->|"latch_ir, rf_we, wb_src,\nalu_op, cache_req, port_rd"| datapath

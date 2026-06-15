@@ -1,1 +1,1 @@
-"""Test package for the CSA lab 4 scaffold."""
+"""Test package for CSA lab 4."""
