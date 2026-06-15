@@ -1,0 +1,149 @@
+"""Assembler tests for layout, encoding, macros, and required diagnostics."""
+
+from __future__ import annotations
+
+from textwrap import dedent
+
+import pytest
+
+from assembler import AssemblerError, assemble
+from isa import (
+    WORD_BYTES,
+    Instruction,
+    Opcode,
+    Segment,
+    SegmentFlag,
+    decode_binary_image,
+    decode_instruction,
+    word_from_bytes,
+)
+
+
+def test_assembles_sections_vectors_pstr_bss_and_listing() -> None:
+    result = assemble(
+        dedent(
+            r"""
+            .section .vectors
+            .org 0x000000
+            .word _start
+            .word irq
+            .space 56
+
+            .section .text
+            _start:
+                li sp, 0x01000000
+                la a0, msg
+                call puts
+                halt
+            puts:
+                ret
+            irq:
+                iret
+
+            .section .rodata
+            msg:
+                .pstr "Hi\n"
+
+            .section .data
+            counter:
+                .word 5, 'A'
+
+            .section .bss
+            buf:
+                .space 8
+            """
+        )
+    )
+
+    assert result.symbols["_start"] == 0x000040
+    assert result.symbols["puts"] == 0x000058
+    assert result.symbols["irq"] == 0x00005C
+    assert result.symbols["msg"] == 0x000060
+    assert result.symbols["counter"] == 0x000070
+    assert result.symbols["buf"] == 0x000078
+
+    segments = decode_binary_image(result.binary)
+    assert [(segment.base_address, segment.size, segment.flags) for segment in segments] == [
+        (0x000000, 64, SegmentFlag(0)),
+        (0x000040, 32, SegmentFlag.EXEC),
+        (0x000060, 16, SegmentFlag(0)),
+        (0x000070, 8, SegmentFlag.WRITE),
+        (0x000078, 8, SegmentFlag.WRITE | SegmentFlag.BSS),
+    ]
+
+    assert _word_at(segments, 0x000000) == 0x000040
+    assert _word_at(segments, 0x000004) == 0x00005C
+    assert _word_at(segments, 0x000060) == 3
+    assert _word_at(segments, 0x000064) == ord("H")
+    assert _word_at(segments, 0x000068) == ord("i")
+    assert _word_at(segments, 0x00006C) == ord("\n")
+    assert _word_at(segments, 0x000070) == 5
+    assert _word_at(segments, 0x000074) == ord("A")
+
+    assert decode_instruction(_word_at(segments, 0x000050)) == Instruction(Opcode.JAL, addr24=0x000058)
+    assert decode_instruction(_word_at(segments, 0x000058)) == Instruction(Opcode.JR, rs1=15)
+    assert "000050 - 0x41000058 - jal 0x000058" in result.listing
+    assert any(entry["address"] == 0x000050 and entry["source"] == "call puts" for entry in result.source_map)
+
+
+def test_expands_conditionals_macros_and_local_labels() -> None:
+    result = assemble(
+        dedent(
+            """
+            .equ USE_LOOP, 1
+
+            .macro dec_until_zero reg
+            %%loop:
+                beq reg, zero, %%end
+                addi reg, reg, -1
+                j %%loop
+            %%end:
+            .endm
+
+            .section .text
+            .org 0x000040
+            _start:
+                li t0, 2
+            .if USE_LOOP
+                dec_until_zero t0
+            .else
+                halt
+            .endif
+                halt
+            """
+        )
+    )
+
+    segments = decode_binary_image(result.binary)
+    assert decode_instruction(_word_at(segments, 0x000040)) == Instruction(Opcode.ADDI, rd=5, rs1=0, imm16=2)
+    assert decode_instruction(_word_at(segments, 0x000044)) == Instruction(Opcode.BEQ, rs1=5, rs2=0, imm16=8)
+    assert decode_instruction(_word_at(segments, 0x000048)) == Instruction(Opcode.ADDI, rd=5, rs1=5, imm16=0xFFFF)
+    assert decode_instruction(_word_at(segments, 0x00004C)) == Instruction(Opcode.J, addr24=0x000044)
+    assert decode_instruction(_word_at(segments, 0x000050)) == Instruction(Opcode.HALT)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        '.section .text\n.pstr "x"\n',
+        ".section .text\n.org 0x40\nnop\n.org 0x40\nhalt\n",
+        ".section .text\n.org 0x40\nbeq zero, zero, 0x41\n",
+        ".section .data\n.space 1\n.word 0\n",
+        ".section .text\nli a0, later\nlater:\n    nop\n",
+    ],
+)
+def test_rejects_required_assembler_errors(source: str) -> None:
+    with pytest.raises(AssemblerError):
+        assemble(source)
+
+
+def _word_at(segments: list[Segment], address: int) -> int:
+    for segment in segments:
+        if segment.flags & SegmentFlag.BSS:
+            continue
+        start = segment.base_address
+        end = start + len(segment.data)
+        if start <= address <= end - WORD_BYTES:
+            offset = address - start
+            return word_from_bytes(segment.data[offset : offset + WORD_BYTES])
+    raise AssertionError("word not found at 0x{:06X}".format(address))
