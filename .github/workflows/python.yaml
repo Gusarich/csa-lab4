@@ -20,7 +20,7 @@ defaults:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, csa-lab4]
 
     steps:
       - name: Checkout code
@@ -45,7 +45,7 @@ jobs:
           CI: true
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, csa-lab4]
 
     steps:
       - name: Checkout code
