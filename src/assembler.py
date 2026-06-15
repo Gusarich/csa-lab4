@@ -388,6 +388,7 @@ class Assembler:
         self.placements: list[Placement] = []
         self.listing: list[str] = []
         self.source_map: list[dict[str, object]] = []
+        self.highest_section_index = -1
 
     def assemble(self, lines: list[SourceLine]) -> AssemblyResult:
         """Assemble preprocessed source lines."""
@@ -415,14 +416,18 @@ class Assembler:
     def _define_label(self, label: str, line: SourceLine) -> None:
         if label in self.constants or label in self.labels:
             _fail_at(line, "duplicate label: {}".format(label))
+        self._enter_current_section(line)
         self.labels[label] = self._cursor()
 
     def _place_statement(self, statement: str, line: SourceLine) -> None:
         if statement.startswith("."):
             self._place_directive(statement, line)
             return
+        self._enter_current_section(line)
         self._require_aligned(line, "instruction")
         address = self._cursor()
+        if self.current_section == ".vectors" and VECTOR_RESERVED_START <= address < VECTOR_TABLE_END:
+            _fail_at(line, "reserved vector-table entries must be zero")
         self._claim(address, WORD_BYTES, line)
         self.placements.append(Placement(self.current_section, address, statement, line))
         self._advance(WORD_BYTES)
@@ -447,14 +452,17 @@ class Assembler:
         if len(args) != 1 or args[0] not in SECTION_ORDER:
             _fail_at(line, "unknown section")
         self.current_section = args[0]
+        self._enter_current_section(line)
         self._cursor()
 
     def _set_origin(self, statement: str, line: SourceLine) -> None:
+        self._enter_current_section(line)
         address = self._eval(_after_directive(statement, ".org"))
         _check_address(address, line)
         self.sections[self.current_section].cursor = address
 
     def _place_word(self, statement: str, line: SourceLine) -> None:
+        self._enter_current_section(line)
         operands = _split_operands(_after_directive(statement, ".word"))
         if len(operands) == 0:
             _fail_at(line, ".word requires at least one expression")
@@ -466,6 +474,7 @@ class Assembler:
         self._advance(size)
 
     def _place_space(self, statement: str, line: SourceLine) -> None:
+        self._enter_current_section(line)
         size = self._eval(_after_directive(statement, ".space"))
         if size < 0:
             _fail_at(line, ".space size cannot be negative")
@@ -475,6 +484,7 @@ class Assembler:
         self._advance(size)
 
     def _place_pstr(self, statement: str, line: SourceLine) -> None:
+        self._enter_current_section(line)
         if self.current_section not in {".rodata", ".data"}:
             _fail_at(line, ".pstr is allowed only in .rodata or .data")
         text = _parse_string_literal(_after_directive(statement, ".pstr"), line)
@@ -497,6 +507,7 @@ class Assembler:
                 self._emit_instruction(placement)
 
     def _emit_instruction(self, placement: Placement) -> None:
+        self._validate_original_la(placement)
         instruction = self._parse_instruction(placement)
         word = encode_instruction(instruction)
         self._write_word(placement.section, placement.address, word)
@@ -729,6 +740,23 @@ class Assembler:
     def _require_aligned(self, line: SourceLine, what: str) -> None:
         if self._cursor() % WORD_BYTES != 0:
             _fail_at(line, "{} address is not word-aligned".format(what))
+
+    def _enter_current_section(self, line: SourceLine) -> None:
+        index = SECTION_ORDER.index(self.current_section)
+        if index < self.highest_section_index:
+            _fail_at(line, "sections must follow order: {}".format(", ".join(SECTION_ORDER)))
+        self.highest_section_index = max(self.highest_section_index, index)
+
+    def _validate_original_la(self, placement: Placement) -> None:
+        _, statement = _split_label(_source_text(placement.line))
+        if not statement or _first_word(statement) != "la":
+            return
+        operands = _split_operands(statement[len("la") :].strip())
+        if len(operands) != 2:
+            return
+        value = self._eval(operands[1])
+        if not 0 <= value <= MAX_ADDRESS:
+            _fail_at(placement.line, "la address is outside 24-bit memory range")
 
 
 def assemble(text: str) -> AssemblyResult:

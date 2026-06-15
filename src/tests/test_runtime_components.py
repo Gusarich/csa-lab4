@@ -114,6 +114,15 @@ def test_input_schedule_and_port_controller() -> None:
     assert ports.output_text() == "Z"
 
 
+def test_input_schedule_allows_semicolon_byte_and_comments() -> None:
+    schedule = parse_input_schedule("1 ';'\n2 'A' ; comment\n")
+
+    assert schedule == [
+        InputEvent(1, InputEventKind.BYTE, ord(";")),
+        InputEvent(2, InputEventKind.BYTE, ord("A")),
+    ]
+
+
 def test_input_device_records_overrun_without_hidden_queue() -> None:
     device = InputDevice(
         [

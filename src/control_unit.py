@@ -241,13 +241,13 @@ class ControlUnit:
             self._stop(ControlState.FAULT, StopReason.FAULT_ADDR)
             raise CacheAccessError
         fetch_address = self.pc
+        self.instruction_address = fetch_address
         if not self.datapath.cache_busy():
             self.datapath.select_address_source(AddressSource.PC, pc=fetch_address)
             self.datapath.cache_read(fetch_address)
         cache_event = self.datapath.cache_tick()
         if cache_event.completed:
             assert cache_event.value is not None
-            self.instruction_address = fetch_address
             self.datapath.latch_ir(cache_event.value)
             self.instruction = decode_instruction(cache_event.value)
             self.pc = (self.pc + WORD_BYTES) & WORD_MASK
@@ -434,6 +434,8 @@ class ControlUnit:
 
     def _decoded_text(self, state: ControlState) -> str:
         if state in {ControlState.RESET_VECTOR, ControlState.FAULT, ControlState.HALTED}:
+            return ""
+        if state == ControlState.IF and self.state == ControlState.IF:
             return ""
         return disassemble(self.instruction)
 

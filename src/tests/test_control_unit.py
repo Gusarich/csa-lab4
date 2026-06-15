@@ -112,6 +112,36 @@ def test_enters_irq_handler_only_after_instruction_boundary() -> None:
     assert any(entry.mode == ExecutionMode.IRQ and entry.port_event.startswith("out 0x0011") for entry in result.log)
 
 
+def test_pending_input_irq_waits_until_ei_instruction_boundary() -> None:
+    result = _run_source(
+        """
+        .section .vectors
+        .word _start
+        .word irq
+        .space 56
+
+        .section .text
+        _start:
+            nop
+            ei
+            halt
+        irq:
+            in a0, IN_DATA
+            out OUT_DATA, a0
+            iret
+        """,
+        input_events=[InputEvent(42, InputEventKind.BYTE, ord("Q"))],
+        max_ticks=250,
+    )
+
+    input_tick = next(entry.tick for entry in result.log if entry.input_event is not None)
+    ei_tick = next(entry.tick for entry in result.log if entry.state == ControlState.EXEC_SYS and entry.source == "ei")
+    irq_tick = next(entry.tick for entry in result.log if entry.state == ControlState.IRQ_ENTER)
+
+    assert result.stdout == "Q"
+    assert input_tick < ei_tick < irq_tick
+
+
 def test_faults_when_reset_vector_is_zero() -> None:
     program = encode_binary_image([Segment(0, word_to_bytes(0) + bytes(60), SegmentFlag(0))])
     datapath = DataPath.from_segments(decode_binary_image(program))
@@ -182,6 +212,45 @@ def test_cache_completion_ticks_keep_the_state_that_consumed_the_tick() -> None:
         entry.state == ControlState.IF and entry.cache is not None and entry.cache.completed for entry in result.log
     )
     assert not any(entry.state == ControlState.EXEC_ALU and entry.cache is not None for entry in result.log)
+
+
+def test_instruction_fetch_wait_trace_uses_fetch_source_without_stale_decode() -> None:
+    result = _run_source(
+        """
+        .section .vectors
+        .word _start
+        .word 0
+        .space 56
+
+        .section .text
+        _start:
+            li a0, 'A'
+            halt
+        """,
+        max_ticks=120,
+    )
+
+    wait_entry = next(
+        entry
+        for entry in result.log
+        if entry.state == ControlState.IF
+        and entry.cache is not None
+        and entry.cache.address == 0x000040
+        and not entry.cache.completed
+    )
+    complete_entry = next(
+        entry
+        for entry in result.log
+        if entry.state == ControlState.IF
+        and entry.cache is not None
+        and entry.cache.address == 0x000040
+        and entry.cache.completed
+    )
+
+    assert wait_entry.source == "li a0, 'A'"
+    assert wait_entry.decoded == ""
+    assert complete_entry.source == "li a0, 'A'"
+    assert complete_entry.decoded == "addi a0, zero, 65"
 
 
 def test_last_word_address_is_valid_but_next_word_faults() -> None:

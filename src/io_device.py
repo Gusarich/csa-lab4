@@ -180,12 +180,35 @@ def parse_input_schedule(text: str) -> list[InputEvent]:
     """Parse a trap input schedule file."""
     events: list[InputEvent] = []
     for line_number, raw_line in enumerate(text.splitlines(), 1):
-        line = raw_line.split(";", 1)[0].strip()
+        line = _strip_schedule_comment(raw_line).strip()
         if not line:
             continue
         events.append(_parse_schedule_line(line, line_number))
     _validate_schedule(events)
     return events
+
+
+def _strip_schedule_comment(line: str) -> str:
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(line):
+        if char == ";" and quote is None:
+            return line[:index]
+        quote, escaped = _next_schedule_quote_state(quote, escaped, char)
+    return line
+
+
+def _next_schedule_quote_state(quote: str | None, escaped: bool, char: str) -> tuple[str | None, bool]:
+    if escaped:
+        return quote, False
+    if char == "\\" and quote is not None:
+        return quote, True
+    if char in {"'", '"'}:
+        if quote is None:
+            return char, False
+        if quote == char:
+            return None, False
+    return quote, False
 
 
 def _parse_schedule_line(line: str, line_number: int) -> InputEvent:

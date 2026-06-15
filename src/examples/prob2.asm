@@ -229,10 +229,16 @@ read_line_pstr:
     move a3, a0
     li a2, 0
 read_line_loop:
+    la t0, rx_flags
+    lw t1, 0(t0)
+    andi t2, t1, FLAG_DEVICE_OVERRUN | FLAG_RING_OVERFLOW
+    bne t2, zero, read_line_overflow
     call rx_pop
     bne a0, zero, read_line_have_char
     la t0, rx_flags
     lw t1, 0(t0)
+    andi t2, t1, FLAG_DEVICE_OVERRUN | FLAG_RING_OVERFLOW
+    bne t2, zero, read_line_overflow
     andi t1, t1, FLAG_EOF
     bne t1, zero, read_line_done
     j read_line_loop

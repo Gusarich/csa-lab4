@@ -135,7 +135,10 @@ def test_expands_conditionals_macros_and_local_labels() -> None:
         ".section .data\n.space 1\n.word 0\n",
         ".section .text\nli a0, later\nlater:\n    nop\n",
         ".section .text\n.org 0x40\nla a0, 0x01000000\n",
+        ".section .text\nla a0, top + 4\nhalt\n.section .data\n.org 0x00FFFFFC\ntop:\n.word 0\n",
         ".section .vectors\n.word 0\n.word 0\n.word 1\n",
+        ".section .vectors\n.org 0x000008\nhalt\n",
+        ".section .data\n.word 1\n.section .text\nhalt\n",
         '.section .rodata\n.pstr "é"\n',
     ],
 )
