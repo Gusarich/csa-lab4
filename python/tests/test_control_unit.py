@@ -121,6 +121,60 @@ def test_faults_when_reset_vector_is_zero() -> None:
     assert result.ticks == 41
 
 
+def test_faults_on_unaligned_jump_register_target() -> None:
+    result = _run_source(
+        """
+        .section .vectors
+        .word _start
+        .word 0
+        .space 56
+
+        .section .text
+        _start:
+            li t0, 0x41
+            jr t0
+        """
+    )
+
+    assert result.stop_reason == StopReason.FAULT_ADDR
+    assert result.log[-1].state == ControlState.FAULT
+
+
+def test_last_word_address_is_valid_but_next_word_faults() -> None:
+    valid = _run_source(
+        """
+        .section .vectors
+        .word _start
+        .word 0
+        .space 56
+
+        .section .text
+        _start:
+            li a0, 0x00FFFFFC
+            lw a1, 0(a0)
+            halt
+        """,
+        max_ticks=300,
+    )
+    invalid = _run_source(
+        """
+        .section .vectors
+        .word _start
+        .word 0
+        .space 56
+
+        .section .text
+        _start:
+            li a0, 0x01000000
+            lw a1, 0(a0)
+        """,
+        max_ticks=300,
+    )
+
+    assert valid.stop_reason == StopReason.HALT
+    assert invalid.stop_reason == StopReason.FAULT_ADDR
+
+
 def _run_source(
     source: str,
     *,

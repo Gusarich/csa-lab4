@@ -14,6 +14,7 @@ from control_unit import StopReason
 from machine import simulate
 
 EXAMPLES = Path(__file__).parents[1] / "examples"
+EXAMPLE_SOURCES = sorted(EXAMPLES.glob("*.asm"))
 
 
 def test_hello_example_outputs_pascal_string() -> None:
@@ -125,9 +126,28 @@ def test_cache_examples_show_locality_and_conflicts() -> None:
     assert any(entry.cache is not None and entry.cache.phase == CachePhase.WRITE_BACK for entry in conflict.log)
 
 
+@pytest.mark.parametrize("source_path", EXAMPLE_SOURCES)
+def test_example_sources_follow_structured_asm_style(source_path: Path) -> None:
+    lines = source_path.read_text(encoding="utf-8").splitlines()
+    halt_indexes = [index for index, line in enumerate(lines) if line.strip() == "halt"]
+
+    assert "\t" not in "\n".join(lines)
+    assert len(halt_indexes) == 1
+    assert _previous_code_line(lines, halt_indexes[0]) == "done:"
+    assert ".section .vectors" in lines
+
+
 def _run_example(name: str, schedule: str = "", *, max_ticks: int = 200_000):
     assembly = assemble((EXAMPLES / "{}.asm".format(name)).read_text(encoding="utf-8"))
     return simulate(assembly.binary, schedule, max_ticks=max_ticks)
+
+
+def _previous_code_line(lines: list[str], index: int) -> str:
+    for previous in range(index - 1, -1, -1):
+        line = lines[previous].strip()
+        if line and not line.startswith(";"):
+            return line
+    return ""
 
 
 def _schedule_for_text(text: str, *, start: int = 10_000, gap: int = 2_500) -> str:
