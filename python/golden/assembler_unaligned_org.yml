@@ -1,0 +1,12 @@
+in_source: |
+  .section .vectors
+  .word _start
+  .word 0
+  .space 56
+
+  .section .text
+  .org 0x000041
+  _start:
+      halt
+in_assembler_error: 'line 8: instruction address is not word-aligned'
+out_assembler_error: 'line 9: instruction address is not word-aligned'

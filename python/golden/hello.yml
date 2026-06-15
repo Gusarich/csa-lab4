@@ -1,0 +1,89 @@
+in_source: |
+  .section .vectors
+  .word _start
+  .word 0
+  .space 56
+
+  .section .text
+  _start:
+      la a0, msg
+      call puts_pstr
+      halt
+
+  puts_pstr:
+      lw t0, 0(a0)
+      addi t1, a0, 4
+  puts_loop:
+      beq t0, zero, puts_done
+      lw t2, 0(t1)
+      out OUT_DATA, t2
+      addi t1, t1, 4
+      addi t0, t0, -1
+      j puts_loop
+  puts_done:
+      ret
+
+  .section .rodata
+  msg:
+      .pstr "hello world\n"
+in_args:
+  max_ticks: 1000
+in_log_patterns:
+- src='la a0, msg'
+- src='lw t0, 0(a0)'
+- src='out OUT_DATA, t2' port=out 0x0011 <- 0x00000068
+- state=HALTED
+out_log: |-
+  T=000081 step=40 mode=MAIN state=EXEC_ALU pc=000044 ir=0x14100000 decoded=lui epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='la a0, msg' cache=read:fill:addr=000040:index=04:tag=000000:mem=00004C:word=3:lat=10:ready:value=0x14100000
+  T=000127 step=40 mode=MAIN state=EXEC_ADDR pc=000054 ir=0x20510000 decoded=lw epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 stop=RUNNING regs=[zero=00000000,a0=00000074,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=0000004C] src='lw t0, 0(a0)' cache=read:fill:addr=000050:index=05:tag=000000:mem=00005C:word=3:lat=10:ready:value=0x20510000
+  T=000218 step=0 mode=MAIN state=IF pc=000064 ir=0x51700011 decoded=out epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 stop=RUNNING regs=[zero=00000000,a0=00000074,a1=00000000,a2=00000000,a3=00000000,t0=0000000C,t1=00000078,t2=00000068,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=0000004C] src='out OUT_DATA, t2' port=out 0x0011 <- 0x00000068
+  T=000493 step=0 mode=HALTED state=HALTED pc=000050 ir=0x43000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 stop=HALT regs=[zero=00000000,a0=00000074,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=000000A8,t2=0000000A,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=0000004C] src='halt'
+out_ticks: 494
+out_stop_reason: HALT
+out_stdout: |
+  hello world
+out_listing: |-
+  000000 - 0x00000040 - .word 64
+  000004 - 0x00000000 - .word 0
+  000008 - 0x00000000 - .word 0
+  00000C - 0x00000000 - .word 0
+  000010 - 0x00000000 - .word 0
+  000014 - 0x00000000 - .word 0
+  000018 - 0x00000000 - .word 0
+  00001C - 0x00000000 - .word 0
+  000020 - 0x00000000 - .word 0
+  000024 - 0x00000000 - .word 0
+  000028 - 0x00000000 - .word 0
+  00002C - 0x00000000 - .word 0
+  000030 - 0x00000000 - .word 0
+  000034 - 0x00000000 - .word 0
+  000038 - 0x00000000 - .word 0
+  00003C - 0x00000000 - .word 0
+  000040 - 0x14100000 - lui a0, 0
+  000044 - 0x12110074 - ori a0, a0, 116
+  000048 - 0x41000050 - jal 0x000050
+  00004C - 0x43000000 - halt
+  000050 - 0x20510000 - lw t0, 0(a0)
+  000054 - 0x10610004 - addi t1, a0, 4
+  000058 - 0x30500014 - beq t0, zero, 20
+  00005C - 0x20760000 - lw t2, 0(t1)
+  000060 - 0x51700011 - out 0x0011, t2
+  000064 - 0x10660004 - addi t1, t1, 4
+  000068 - 0x1055FFFF - addi t0, t0, -1
+  00006C - 0x40000058 - j 0x000058
+  000070 - 0x420F0000 - jr ra
+  000074 - 0x0000000C - .word 12
+  000078 - 0x00000068 - .word 104
+  00007C - 0x00000065 - .word 101
+  000080 - 0x0000006C - .word 108
+  000084 - 0x0000006C - .word 108
+  000088 - 0x0000006F - .word 111
+  00008C - 0x00000020 - .word 32
+  000090 - 0x00000077 - .word 119
+  000094 - 0x0000006F - .word 111
+  000098 - 0x00000072 - .word 114
+  00009C - 0x0000006C - .word 108
+  0000A0 - 0x00000064 - .word 100
+  0000A4 - 0x0000000A - .word 10
+out_code_base64: 
+  TDRNQwABAAMAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAADQAAAABFBAAABIRAHRBAABQQwAAACBRAAAQYQAEMFAAFCB2AABRcAAREGYABBBV//9AAABYQg8AAAAAAHQAAAA0AAAAAAAAAAwAAABoAAAAZQAAAGwAAABsAAAAbwAAACAAAAB3AAAAbwAAAHIAAABsAAAAZAAAAAo=

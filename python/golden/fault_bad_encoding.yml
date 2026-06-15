@@ -1,0 +1,41 @@
+in_source: |
+  .section .vectors
+  .word _start
+  .word 0
+  .space 56
+
+  .section .text
+  _start:
+      .word 0x14F10000
+in_args:
+  max_ticks: 200
+in_log_patterns:
+- state=FAULT
+out_log: T=000081 step=40 mode=FAULT state=FAULT pc=000040 ir=0x14F10000 
+  decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 
+  stop=FAULT_BAD_ENCODING 
+  regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000]
+  src='.word 0x14F10000'
+out_ticks: 82
+out_stop_reason: FAULT_BAD_ENCODING
+out_stdout: ''
+out_listing: |-
+  000000 - 0x00000040 - .word 64
+  000004 - 0x00000000 - .word 0
+  000008 - 0x00000000 - .word 0
+  00000C - 0x00000000 - .word 0
+  000010 - 0x00000000 - .word 0
+  000014 - 0x00000000 - .word 0
+  000018 - 0x00000000 - .word 0
+  00001C - 0x00000000 - .word 0
+  000020 - 0x00000000 - .word 0
+  000024 - 0x00000000 - .word 0
+  000028 - 0x00000000 - .word 0
+  00002C - 0x00000000 - .word 0
+  000030 - 0x00000000 - .word 0
+  000034 - 0x00000000 - .word 0
+  000038 - 0x00000000 - .word 0
+  00003C - 0x00000000 - .word 0
+  000040 - 0x14F10000 - .word 351338496
+out_code_base64: 
+  TDRNQwABAAIAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAQAAAABFPEAAA==
