@@ -24,5 +24,6 @@ done:
     halt
 
 .section .data
+.org 0x000080
 values:
     .word 'A', 0, 0, 0

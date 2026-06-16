@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 from assembler import assemble
 from control_unit import StopReason
 from machine import main, simulate
@@ -23,7 +25,7 @@ def test_simulate_runs_binary_and_returns_result() -> None:
     assert result.ticks == len(result.log)
 
 
-def test_main_writes_trace_log_and_prints_summary(tmp_path: Path, capsys) -> None:
+def test_main_writes_trace_log_and_prints_summary(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assembly = assemble(_hello_source())
     program = tmp_path / "program.bin"
     schedule = tmp_path / "input.schedule"

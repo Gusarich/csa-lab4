@@ -13,6 +13,9 @@ READY_BIT = 1 << 0
 EOF_BIT = 1 << 1
 OVERRUN_BIT = 1 << 2
 
+CTRL_CLEAR_EOF = 1 << 0
+CTRL_CLEAR_OVERRUN = 1 << 1
+
 
 class InputScheduleError(Exception):
     """Raised when an input schedule is malformed."""
@@ -99,9 +102,9 @@ class InputDevice:
 
     def write_ctrl(self, value: int) -> None:
         """Write IN_CTRL known control bits."""
-        if value & READY_BIT:
+        if value & CTRL_CLEAR_EOF:
             self.eof = False
-        if value & EOF_BIT:
+        if value & CTRL_CLEAR_OVERRUN:
             self.overrun = False
 
     def irq_line(self) -> bool:

@@ -186,15 +186,6 @@ class DirectMappedCache:
         """Return whether a cache access is in progress."""
         return self.pending is not None
 
-    def flush(self) -> list[CacheTick]:
-        """Write all dirty cache lines back, one observable tick per memory wait."""
-        ticks: list[CacheTick] = []
-        for index, line in enumerate(self.lines):
-            if line.valid and line.dirty:
-                ticks.extend(self._flush_line(index, line))
-                line.dirty = False
-        return ticks
-
     def _begin(self, request: CacheRequest) -> None:
         if self.pending is not None:
             _cache_error("cache access already in progress")
@@ -330,34 +321,6 @@ class DirectMappedCache:
             word_index=word_index,
             latency_tick=latency_tick,
         )
-
-    def _flush_line(self, index: int, line: CacheLine) -> list[CacheTick]:
-        ticks = []
-        for word_index, word in enumerate(line.words):
-            address = _line_base(line.tag, index) + word_index * WORD_BYTES
-            request = CacheRequest(CacheOperation.WRITE, address, word)
-            pending = PendingAccess(
-                request=request,
-                index=index,
-                tag=line.tag,
-                line_base=_line_base(line.tag, index),
-                word_offset=word_index,
-                old_tag=line.tag,
-                old_words=[],
-                phase=CachePhase.WRITE_BACK,
-            )
-            for latency_tick in range(1, MEMORY_LATENCY_PER_WORD + 1):
-                ticks.append(
-                    self._tick_result(
-                        CachePhase.WRITE_BACK,
-                        pending,
-                        memory_address=address,
-                        word_index=word_index,
-                        latency_tick=latency_tick,
-                    )
-                )
-            self.memory.write_word(address, word)
-        return ticks
 
 
 def _decode_address(address: int) -> tuple[int, int, int, int]:

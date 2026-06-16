@@ -17,8 +17,7 @@ DEFAULT_MAX_TICKS = 1_000_000
 def test_assembler_and_machine_golden(golden: Any) -> None:
     """Run one self-contained YAML golden scenario."""
     source = cast(str, golden["in_source"])
-    expected_assembler_error = cast(str | None, golden.get("in_assembler_error"))
-    if expected_assembler_error is not None:
+    if golden.get("in_assembler_error") is not None:
         with pytest.raises(AssemblerError) as exc_info:
             assemble(source)
         assert str(exc_info.value) == golden.out["out_assembler_error"]

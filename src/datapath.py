@@ -57,7 +57,6 @@ class DataPathSnapshot:
     selected_address: int
     input_status: int
     output_length: int
-    output: str
     irq_line: bool
 
 
@@ -172,7 +171,6 @@ class DataPath:
             selected_address=self.selected_address,
             input_status=self.input_status(),
             output_length=self.output_length(),
-            output=self.output_text(),
             irq_line=self.irq_line(),
         )
 

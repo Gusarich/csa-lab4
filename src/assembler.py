@@ -589,7 +589,7 @@ class Assembler:
         rs1 = _register(operands[1], placement.line)
         value = self._eval(operands[2])
         if opcode in SIGNED_IMMEDIATE_OPCODES:
-            return Instruction(opcode, rd=rd, rs1=rs1, imm16=encode_signed_16(value))
+            return Instruction(opcode, rd=rd, rs1=rs1, imm16=_signed_16(value, placement.line))
         return Instruction(opcode, rd=rd, rs1=rs1, imm16=_unsigned_16(value, placement.line))
 
     def _build_memory_instruction(self, opcode: Opcode, operands: list[str], placement: Placement) -> Instruction:
@@ -599,7 +599,7 @@ class Assembler:
             opcode,
             rd=_register(operands[0], placement.line),
             rs1=_register(base, placement.line),
-            imm16=encode_signed_16(self._eval(offset)),
+            imm16=_signed_16(self._eval(offset), placement.line),
         )
 
     def _build_branch_instruction(self, opcode: Opcode, operands: list[str], placement: Placement) -> Instruction:
@@ -611,7 +611,7 @@ class Assembler:
             opcode,
             rs1=_register(operands[0], placement.line),
             rs2=_register(operands[1], placement.line),
-            imm16=encode_signed_16(offset),
+            imm16=_signed_16(offset, placement.line),
         )
 
     def _build_jump_instruction(self, opcode: Opcode, operands: list[str], placement: Placement) -> Instruction:
@@ -1069,6 +1069,12 @@ def _unsigned_16(value: int, line: SourceLine) -> int:
     return value
 
 
+def _signed_16(value: int, line: SourceLine) -> int:
+    if not -(1 << 15) <= value < (1 << 15):
+        _fail_at(line, "signed 16-bit value out of range: {}".format(value))
+    return encode_signed_16(value)
+
+
 def _check_address(address: int, line: SourceLine) -> None:
     if not 0 <= address <= MAX_ADDRESS:
         _fail_at(line, "address out of range: {}".format(address))
@@ -1076,7 +1082,7 @@ def _check_address(address: int, line: SourceLine) -> None:
 
 def _check_word_address(address: int, line: SourceLine) -> None:
     if not 0 <= address <= MAX_WORD_ADDRESS or address % WORD_BYTES != 0:
-        _fail_at(line, "target address is not an aligned word address")
+        _fail_at(line, "target address is out of range or not word-aligned")
 
 
 def _align_word(value: int) -> int:

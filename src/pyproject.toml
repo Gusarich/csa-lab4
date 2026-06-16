@@ -79,3 +79,6 @@ unfixable = [
 
 [tool.ruff.lint.mccabe]
 max-complexity = 7
+
+[tool.mypy]
+strict = true

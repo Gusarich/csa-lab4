@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from cache import CacheAccessError, CacheTick, MemoryAccessError
-from datapath import AddressSource, AluOperation, DataPath, sign_extend_16, validate_word_address
+from datapath import AddressSource, AluOperation, DataPath, _to_signed, sign_extend_16, validate_word_address
 from io_device import AppliedInputEvent, PortAccessError
 from isa import (
     INPUT_VECTOR_ADDRESS,
@@ -137,10 +137,11 @@ class ControlUnit:
         """Advance the processor by exactly one tick."""
         current_state = self.state
         current_step = self.step
+        current_mode = self._mode(self.state)
         self.port_event = ""
         input_event = self.datapath.apply_input_tick(self.tick_counter)
         cache_event = self._perform_state_tick()
-        entry = self._trace_entry(current_step, current_state, input_event, cache_event)
+        entry = self._trace_entry(current_step, current_state, current_mode, input_event, cache_event)
         if self.keep_log:
             self.log.append(entry)
         self._advance_step(current_state)
@@ -393,6 +394,7 @@ class ControlUnit:
         self,
         step: int,
         state: ControlState,
+        mode: ExecutionMode,
         input_event: AppliedInputEvent | None,
         cache_event: CacheTick | None,
     ) -> TraceEntry:
@@ -400,7 +402,7 @@ class ControlUnit:
         return TraceEntry(
             tick=self.tick_counter,
             step=step,
-            mode=self._mode(state),
+            mode=mode,
             state=state,
             pc=self.pc,
             ir=self.datapath.ir,
@@ -480,10 +482,3 @@ def _alu_operation(opcode: Opcode) -> AluOperation:
         Opcode.XORI: AluOperation.XOR,
     }
     return mapping[opcode]
-
-
-def _to_signed(value: int) -> int:
-    value &= WORD_MASK
-    if value & (1 << 31):
-        return value - (1 << 32)
-    return value

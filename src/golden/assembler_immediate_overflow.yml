@@ -3,10 +3,8 @@ in_source: |
   .word _start
   .word 0
   .space 56
-
   .section .text
-  .org 0x000041
   _start:
-      halt
+      addi t0, zero, 32768
 in_assembler_error: true
-out_assembler_error: 'line 9: instruction address is not word-aligned'
+out_assembler_error: 'line 7: signed 16-bit value out of range: 32768'

@@ -1,40 +1,64 @@
 in_source: |
+  .equ STACK_INIT, 0x01000000
+
   .section .vectors
+  .org 0x000000
   .word _start
   .word 0
   .space 56
 
   .section .text
+  .org 0x000040
   _start:
+      li sp, STACK_INIT
       la t0, slot0
       la t1, slot1
-      li a0, 'Z'
-      sw a0, 0(t0)
-      sw a0, 0(t1)
-      lw a1, 0(t0)
-      out OUT_DATA, a1
+      la t2, slot2
+
+      lw a0, 0(t0)
+      lw a1, 0(t1)
+      lw a2, 0(t2)
+
+      li a3, 'Z'
+      sw a3, 0(t0)
+      sw a3, 0(t1)
+      sw a3, 0(t2)
+
+      lw a0, 0(t0)
+      out OUT_DATA, a0
+
+  done:
       halt
 
   .section .data
   .org 0x000400
   slot0:
-      .word 'A'
+      .word 'C'
+
   .org 0x000500
   slot1:
-      .word 'B'
+      .word 'A'
+
+  .org 0x000600
+  slot2:
+      .word 'C'
 in_args:
   max_ticks: 2000
 in_log_patterns:
-- src='sw a0, 0(t0)' cache=write:tag:addr=000400
-- src='sw a0, 0(t1)' cache=write:write-back
-- src='lw a1, 0(t0)' cache=read:write-back
-- src='out OUT_DATA, a1' port=out 0x0011 <- 0x0000005A
+- src='lw a0, 0(t0)' cache=read:tag:addr=000400:index=00:tag=000004:MISS
+- src='lw a2, 0(t2)' cache=read:tag:addr=000600:index=00:tag=000006:MISS
+- src='sw a3, 0(t1)' cache=write:write-back:addr=000500
+- src='sw a3, 0(t2)' cache=write:write-back:addr=000600
+- src='lw a0, 0(t0)' cache=read:write-back:addr=000400
+- src='out OUT_DATA, a0' port=out 0x0011 <- 0x0000005A
 out_log: |-
-  T=000133 step=0 mode=MAIN state=MEM pc=000058 ir=0x21150000 alu_out=0x00000400 addr_sel=000400 decoded=sw a0, 0(t0) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=0000005A,a1=00000000,a2=00000000,a3=00000000,t0=00000400,t1=00000500,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='sw a0, 0(t0)' cache=write:tag:addr=000400:index=00:tag=000004:MISS
-  T=000177 step=1 mode=MAIN state=MEM pc=00005C ir=0x21160000 alu_out=0x00000500 addr_sel=000500 decoded=sw a0, 0(t1) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=0000005A,a1=00000000,a2=00000000,a3=00000000,t0=00000400,t1=00000500,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='sw a0, 0(t1)' cache=write:write-back:addr=000500:index=00:tag=000005:mem=000400:word=0:lat=1
-  T=000260 step=1 mode=MAIN state=MEM pc=000060 ir=0x20250000 alu_out=0x00000400 addr_sel=000400 decoded=lw a1, 0(t0) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=0000005A,a1=00000000,a2=00000000,a3=00000000,t0=00000400,t1=00000500,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='lw a1, 0(t0)' cache=read:write-back:addr=000400:index=00:tag=000004:mem=000500:word=0:lat=1
-  T=000381 step=0 mode=MAIN state=EXEC_IO pc=000064 ir=0x51200011 alu_out=0x00000400 addr_sel=000060 decoded=out 0x0011, a1 epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=1 stop=RUNNING regs=[zero=00000000,a0=0000005A,a1=0000005A,a2=00000000,a3=00000000,t0=00000400,t1=00000500,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='out OUT_DATA, a1' port=out 0x0011 <- 0x0000005A
-out_ticks: 384
+  T=000179 step=0 mode=MAIN state=MEM pc=000064 ir=0x20150000 alu_out=0x00000400 addr_sel=000400 decoded=lw a0, 0(t0) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000400,t1=00000500,t2=00000600,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='lw a0, 0(t0)' cache=read:tag:addr=000400:index=00:tag=000004:MISS
+  T=000265 step=0 mode=MAIN state=MEM pc=00006C ir=0x20370000 alu_out=0x00000600 addr_sel=000600 decoded=lw a2, 0(t2) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000043,a1=00000041,a2=00000000,a3=00000000,t0=00000400,t1=00000500,t2=00000600,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='lw a2, 0(t2)' cache=read:tag:addr=000600:index=00:tag=000006:MISS
+  T=000394 step=1 mode=MAIN state=MEM pc=000078 ir=0x21460000 alu_out=0x00000500 addr_sel=000500 decoded=sw a3, 0(t1) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000043,a1=00000041,a2=00000043,a3=0000005A,t0=00000400,t1=00000500,t2=00000600,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='sw a3, 0(t1)' cache=write:write-back:addr=000500:index=00:tag=000005:mem=000400:word=0:lat=1
+  T=000477 step=1 mode=MAIN state=MEM pc=00007C ir=0x21470000 alu_out=0x00000600 addr_sel=000600 decoded=sw a3, 0(t2) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000043,a1=00000041,a2=00000043,a3=0000005A,t0=00000400,t1=00000500,t2=00000600,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='sw a3, 0(t2)' cache=write:write-back:addr=000600:index=00:tag=000006:mem=000500:word=0:lat=1
+  T=000560 step=1 mode=MAIN state=MEM pc=000080 ir=0x20150000 alu_out=0x00000400 addr_sel=000400 decoded=lw a0, 0(t0) epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000043,a1=00000041,a2=00000043,a3=0000005A,t0=00000400,t1=00000500,t2=00000600,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='lw a0, 0(t0)' cache=read:write-back:addr=000400:index=00:tag=000004:mem=000600:word=0:lat=1
+  T=000681 step=0 mode=MAIN state=EXEC_IO pc=000084 ir=0x51100011 alu_out=0x00000400 addr_sel=000080 decoded=out 0x0011, a0 epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=1 stop=RUNNING regs=[zero=00000000,a0=0000005A,a1=00000041,a2=00000043,a3=0000005A,t0=00000400,t1=00000500,t2=00000600,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=01000000,ra=00000000] src='out OUT_DATA, a0' port=out 0x0011 <- 0x0000005A
+out_ticks: 684
 out_stop_reason: HALT
 out_stdout: Z
 out_listing: |-
@@ -54,17 +78,26 @@ out_listing: |-
   000034 - 0x00000000 - .word 0
   000038 - 0x00000000 - .word 0
   00003C - 0x00000000 - .word 0
-  000040 - 0x14500000 - lui t0, 0
-  000044 - 0x12550400 - ori t0, t0, 1024
-  000048 - 0x14600000 - lui t1, 0
-  00004C - 0x12660500 - ori t1, t1, 1280
-  000050 - 0x1010005A - addi a0, zero, 90
-  000054 - 0x21150000 - sw a0, 0(t0)
-  000058 - 0x21160000 - sw a0, 0(t1)
-  00005C - 0x20250000 - lw a1, 0(t0)
-  000060 - 0x51200011 - out 0x0011, a1
-  000064 - 0x43000000 - halt
-  000400 - 0x00000041 - .word 65
-  000500 - 0x00000042 - .word 66
+  000040 - 0x14E00100 - lui sp, 256
+  000044 - 0x12EE0000 - ori sp, sp, 0
+  000048 - 0x14500000 - lui t0, 0
+  00004C - 0x12550400 - ori t0, t0, 1024
+  000050 - 0x14600000 - lui t1, 0
+  000054 - 0x12660500 - ori t1, t1, 1280
+  000058 - 0x14700000 - lui t2, 0
+  00005C - 0x12770600 - ori t2, t2, 1536
+  000060 - 0x20150000 - lw a0, 0(t0)
+  000064 - 0x20260000 - lw a1, 0(t1)
+  000068 - 0x20370000 - lw a2, 0(t2)
+  00006C - 0x1040005A - addi a3, zero, 90
+  000070 - 0x21450000 - sw a3, 0(t0)
+  000074 - 0x21460000 - sw a3, 0(t1)
+  000078 - 0x21470000 - sw a3, 0(t2)
+  00007C - 0x20150000 - lw a0, 0(t0)
+  000080 - 0x51100011 - out 0x0011, a0
+  000084 - 0x43000000 - halt
+  000400 - 0x00000043 - .word 67
+  000500 - 0x00000041 - .word 65
+  000600 - 0x00000043 - .word 67
 out_code_base64: 
-  TDRNQwABAAQAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAACgAAAABFFAAABJVBAAUYAAAEmYFABAQAFohFQAAIRYAACAlAABRIAARQwAAAAAABAAAAAAEAAAAAgAAAEEAAAUAAAAABAAAAAIAAABC
+  TDRNQwABAAUAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAEgAAAABFOABABLuAAAUUAAAElUEABRgAAASZgUAFHAAABJ3BgAgFQAAICYAACA3AAAQQABaIUUAACFGAAAhRwAAIBUAAFEQABFDAAAAAAAEAAAAAAQAAAACAAAAQwAABQAAAAAEAAAAAgAAAEEAAAYAAAAABAAAAAIAAABD

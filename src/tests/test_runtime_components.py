@@ -8,6 +8,7 @@ from cache import (
     ByteAddressableMemory,
     CacheAccessError,
     CachePhase,
+    CacheTick,
     DirectMappedCache,
 )
 from io_device import (
@@ -163,8 +164,8 @@ def test_port_controller_rejects_invalid_direction_or_port() -> None:
         ports.read(0x7777)
 
 
-def _drain_cache(cache: DirectMappedCache) -> list:
-    ticks = []
+def _drain_cache(cache: DirectMappedCache) -> list[CacheTick]:
+    ticks: list[CacheTick] = []
     while cache.is_busy():
         ticks.append(cache.tick())
     return ticks
