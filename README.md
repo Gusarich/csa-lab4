@@ -619,10 +619,10 @@ T=000493 step=0 mode=MAIN state=EXEC_SYS pc=000050 ir=0x43000000 ... out_len=12 
 
 ### 8.3. Непрерывная интеграция
 
-На каждый коммит CI прогоняет автоформаттер и линтеры `ruff`, типизатор `mypy`, юнит- и golden-тесты `pytest`, а также `markdownlint` для документации. Настройки строгие; отключения проверок локально аргументированы. Сборка и проверка выполняются единой целью:
+При отправке в `main` CI прогоняет проверку форматирования `ruff`, линтер `ruff`, типизатор `mypy`, юнит- и golden-тесты `pytest`, а также `markdownlint` для документации. Настройки строгие; локальных отключений правил `ruff` нет. Локально тот же набор проверок запускается единой целью:
 
 ```bash
-make        # format + lint + typecheck + test
+make        # format-check + lint + typecheck + test + markdownlint
 ```
 
 ### 8.4. Пример работы инструментальной цепочки
@@ -631,10 +631,11 @@ make        # format + lint + typecheck + test
 
 ```bash
 # 1. трансляция: asm -> бинарь + листинг + source map
-python asm.py examples/hello.asm hello.bin --debug hello.hex --map hello.map.json
+python src/asm.py src/examples/hello.asm hello.bin --debug hello.hex --map hello.map.json
 
 # 2. запуск модели: бинарь + расписание ввода -> вывод + журнал
-python machine.py hello.bin hello.input --map hello.map.json --log hello.log
+: > hello.input
+python src/machine.py hello.bin hello.input --map hello.map.json --log hello.log
 ```
 
-Результат `hello`: на stdout — `hello world`, остановка `HALT` за `494` такта (первые такты — clean miss на reset vector и на выборке инструкций, что наглядно показывает работу кеша). Соответствующие листинг и фрагмент журнала приведены в разделах [5.4](#54-отладочный-листинг) и [6.8](#68-журнал-и-причины-остановки) и зафиксированы в [hello.yml](src/golden/hello.yml).
+Результат `hello`: на stdout — `hello world`, остановка `HALT` за `498` тактов (первые такты — clean miss на reset vector и на выборке инструкций, что наглядно показывает работу кеша). Соответствующие листинг и фрагмент журнала приведены в разделах [5.4](#54-отладочный-листинг) и [6.8](#68-журнал-и-причины-остановки) и зафиксированы в [hello.yml](src/golden/hello.yml).

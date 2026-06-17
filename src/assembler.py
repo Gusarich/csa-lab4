@@ -179,7 +179,7 @@ class ExpressionEvaluator:
         try:
             tree = ast.parse(expression, mode="eval")
         except SyntaxError:
-            _fail("invalid expression: {}".format(expression))
+            _fail(f"invalid expression: {expression}")
         return self._eval_node(tree.body)
 
     def _eval_node(self, node: ast.AST) -> int:
@@ -211,7 +211,7 @@ class ExpressionEvaluator:
         try:
             return self.symbols[name]
         except KeyError:
-            _fail("unknown identifier: {}".format(name))
+            _fail(f"unknown identifier: {name}")
 
     def _eval_unary(self, node: ast.UnaryOp) -> int:
         value = self._eval_node(node.operand)
@@ -247,7 +247,7 @@ class Preprocessor:
 
     def _process_lines(self, lines: list[SourceLine], depth: int) -> list[SourceLine]:
         if depth > MAX_MACRO_DEPTH:
-            _fail("macro expansion depth exceeds {}".format(MAX_MACRO_DEPTH))
+            _fail(f"macro expansion depth exceeds {MAX_MACRO_DEPTH}")
         result: list[SourceLine] = []
         index = 0
         while index < len(lines):
@@ -278,7 +278,7 @@ class Preprocessor:
             _fail(".macro requires a name")
         name = tokens[1]
         if not IDENTIFIER_RE.fullmatch(name):
-            _fail("invalid macro name: {}".format(name))
+            _fail(f"invalid macro name: {name}")
         params = tuple(_split_operands(" ".join(tokens[2:])))
         self._check_macro_params(params)
         body: list[SourceLine] = []
@@ -287,20 +287,20 @@ class Preprocessor:
             text = _meaningful_text(lines[index].text)
             if text == ".endm":
                 if name in self.macros:
-                    _fail("duplicate macro: {}".format(name))
+                    _fail(f"duplicate macro: {name}")
                 self.macros[name] = Macro(name, params, tuple(body))
                 return index + 1
             body.append(lines[index])
             index += 1
-        return _fail("unterminated macro: {}".format(name))
+        return _fail(f"unterminated macro: {name}")
 
     def _check_macro_params(self, params: tuple[str, ...]) -> None:
         seen: set[str] = set()
         for param in params:
             if not IDENTIFIER_RE.fullmatch(param):
-                _fail("invalid macro parameter: {}".format(param))
+                _fail(f"invalid macro parameter: {param}")
             if param in seen:
-                _fail("duplicate macro parameter: {}".format(param))
+                _fail(f"duplicate macro parameter: {param}")
             seen.add(param)
 
     def _select_conditional_block(self, lines: list[SourceLine], index: int) -> tuple[list[SourceLine], int]:
@@ -313,7 +313,9 @@ class Preprocessor:
         return false_block, next_index
 
     def _collect_conditional(
-        self, lines: list[SourceLine], index: int
+        self,
+        lines: list[SourceLine],
+        index: int,
     ) -> tuple[list[SourceLine], list[SourceLine], int]:
         true_block: list[SourceLine] = []
         false_block: list[SourceLine] = []
@@ -341,15 +343,15 @@ class Preprocessor:
             _fail(".equ requires name and expression")
         name = args[0]
         if not IDENTIFIER_RE.fullmatch(name):
-            _fail("invalid constant name: {}".format(name))
+            _fail(f"invalid constant name: {name}")
         if name in self.constants:
-            _fail("duplicate constant: {}".format(name))
+            _fail(f"duplicate constant: {name}")
         self.constants[name] = _eval_with(self.constants, args[1])
 
     def _expand_statement(self, line: SourceLine, text: str, depth: int) -> list[SourceLine]:
         label, statement = _split_label(text)
         if not statement:
-            return [SourceLine(line.number, "{}:".format(label))] if label is not None else []
+            return [SourceLine(line.number, f"{label}:")] if label is not None else []
         macro = self.macros.get(_first_word(statement))
         if macro is not None:
             return self._expand_macro_call(line, label, statement, macro, depth)
@@ -365,12 +367,12 @@ class Preprocessor:
     ) -> list[SourceLine]:
         args = _split_operands(statement[len(macro.name) :].strip())
         if len(args) != len(macro.params):
-            _fail("macro {} expects {} arguments".format(macro.name, len(macro.params)))
-        prefix = "__macro_{}_".format(self.expansion_index)
+            _fail(f"macro {macro.name} expects {len(macro.params)} arguments")
+        prefix = f"__macro_{self.expansion_index}_"
         self.expansion_index += 1
         expanded: list[SourceLine] = []
         if label is not None:
-            expanded.append(SourceLine(line.number, "{}:".format(label)))
+            expanded.append(SourceLine(line.number, f"{label}:"))
         for body_line in macro.body:
             expanded.append(SourceLine(body_line.number, _substitute_macro(body_line.text, macro.params, args, prefix)))
         return self._process_lines(expanded, depth + 1)
@@ -415,7 +417,7 @@ class Assembler:
 
     def _define_label(self, label: str, line: SourceLine) -> None:
         if label in self.constants or label in self.labels:
-            _fail_at(line, "duplicate label: {}".format(label))
+            _fail_at(line, f"duplicate label: {label}")
         self._enter_current_section(line)
         self.labels[label] = self._cursor()
 
@@ -445,7 +447,7 @@ class Assembler:
         elif directive == ".pstr":
             self._place_pstr(statement, line)
         else:
-            _fail_at(line, "unknown directive: {}".format(directive))
+            _fail_at(line, f"unknown directive: {directive}")
 
     def _switch_section(self, statement: str, line: SourceLine) -> None:
         args = _split_operands(_after_directive(statement, ".section"))
@@ -524,7 +526,7 @@ class Assembler:
                 _fail_at(placement.line, "reserved vector-table entries must be zero")
             if placement.section != ".bss":
                 self._write_word(placement.section, address, value)
-            self._record_listing(address, value, ".word {}".format(value), placement.line)
+            self._record_listing(address, value, f".word {value}", placement.line)
 
     def _emit_space_directive(self, placement: Placement) -> None:
         size = self._eval(_after_directive(placement.statement, ".space"))
@@ -539,12 +541,12 @@ class Assembler:
     def _emit_pstr_directive(self, placement: Placement) -> None:
         text = _parse_string_literal(_after_directive(placement.statement, ".pstr"), placement.line)
         self._write_word(placement.section, placement.address, len(text))
-        self._record_listing(placement.address, len(text), ".word {}".format(len(text)), placement.line)
+        self._record_listing(placement.address, len(text), f".word {len(text)}", placement.line)
         for index, char in enumerate(text, 1):
             address = placement.address + index * WORD_BYTES
             value = ord(char)
             self._write_word(placement.section, address, value)
-            self._record_listing(address, value, ".word {}".format(value), placement.line)
+            self._record_listing(address, value, f".word {value}", placement.line)
 
     def _parse_instruction(self, placement: Placement) -> Instruction:
         mnemonic = _first_word(placement.statement)
@@ -552,7 +554,7 @@ class Assembler:
         try:
             opcode = Opcode(mnemonic)
         except ValueError:
-            _fail_at(placement.line, "unknown instruction: {}".format(mnemonic))
+            _fail_at(placement.line, f"unknown instruction: {mnemonic}")
         return self._build_instruction(opcode, operands, placement)
 
     def _build_instruction(self, opcode: Opcode, operands: list[str], placement: Placement) -> Instruction:
@@ -568,7 +570,7 @@ class Assembler:
         }
         kind = INSTRUCTION_KINDS.get(opcode)
         if kind is None:
-            return _fail_at(placement.line, "unsupported instruction: {}".format(opcode.value))
+            return _fail_at(placement.line, f"unsupported instruction: {opcode.value}")
         return builders[kind](opcode, operands, placement)
 
     def _build_r_instruction(self, opcode: Opcode, operands: list[str], placement: Placement) -> Instruction:
@@ -665,7 +667,7 @@ class Assembler:
                 "address": address,
                 "line": line.number,
                 "source": _source_text(line),
-            }
+            },
         )
 
     def _build_segments(self) -> list[Segment]:
@@ -730,7 +732,7 @@ class Assembler:
         new_range = (address, address + size)
         for start, end, owner in self.ranges:
             if new_range[0] < end and start < new_range[1]:
-                _fail_at(line, "byte range overlaps line {}".format(owner.number))
+                _fail_at(line, f"byte range overlaps line {owner.number}")
         self.ranges.append((new_range[0], new_range[1], line))
         state = self.sections[self.current_section]
         if SECTION_FLAGS[self.current_section] & SegmentFlag.BSS:
@@ -739,7 +741,7 @@ class Assembler:
 
     def _require_aligned(self, line: SourceLine, what: str) -> None:
         if self._cursor() % WORD_BYTES != 0:
-            _fail_at(line, "{} address is not word-aligned".format(what))
+            _fail_at(line, f"{what} address is not word-aligned")
 
     def _enter_current_section(self, line: SourceLine) -> None:
         index = SECTION_ORDER.index(self.current_section)
@@ -776,7 +778,8 @@ def main(source: str, target: str, debug: str | None = None, source_map: str | N
     _write_file(listing_path, result.listing.encode("utf-8"))
     if source_map is not None:
         _write_file(Path(source_map), json.dumps(result.source_map, indent=2).encode("utf-8"))
-    print("source LoC:", len(source_path.read_text(encoding="utf-8").splitlines()), "segments:", len(result.segments))
+    source_lines = len(source_path.read_text(encoding="utf-8").splitlines())
+    sys.stdout.write(f"source LoC: {source_lines} segments: {len(result.segments)}\n")
 
 
 def _write_file(path: Path, data: bytes) -> None:
@@ -794,7 +797,7 @@ def _cli() -> None:
     try:
         main(args.source, args.target, args.debug, args.source_map)
     except AssemblerError as exc:
-        print("assembler error:", exc, file=sys.stderr)
+        sys.stderr.write(f"assembler error: {exc}\n")
         raise SystemExit(1) from exc
 
 
@@ -817,13 +820,13 @@ def _expand_pseudo(line: SourceLine, label: str | None, statement: str, constant
 def _pseudo_lines(mnemonic: str, operands: list[str], constants: dict[str, int]) -> list[str] | None:
     if mnemonic == "move":
         _require_raw_operand_count(operands, 2, mnemonic)
-        return ["add {}, {}, zero".format(operands[0], operands[1])]
+        return [f"add {operands[0]}, {operands[1]}, zero"]
     if mnemonic == "ret":
         _require_raw_operand_count(operands, 0, mnemonic)
         return ["jr ra"]
     if mnemonic == "call":
         _require_raw_operand_count(operands, 1, mnemonic)
-        return ["jal {}".format(operands[0])]
+        return [f"jal {operands[0]}"]
     if mnemonic == "la":
         _require_raw_operand_count(operands, 2, mnemonic)
         return _expand_la(operands[0], operands[1], constants)
@@ -836,13 +839,13 @@ def _pseudo_lines(mnemonic: str, operands: list[str], constants: dict[str, int])
 def _expand_li(register: str, expression: str, constants: dict[str, int]) -> list[str]:
     value = _eval_with(constants, expression)
     if -(1 << 15) <= value < (1 << 15):
-        return ["addi {}, zero, {}".format(register, value)]
+        return [f"addi {register}, zero, {value}"]
     if 0 <= value <= 0xFFFF:
-        return ["ori {}, zero, {}".format(register, value)]
+        return [f"ori {register}, zero, {value}"]
     if not -(1 << 31) <= value <= 0xFFFFFFFF:
         _fail("li immediate is outside 32-bit range")
     encoded = value & 0xFFFFFFFF
-    return ["lui {}, {}".format(register, encoded >> 16), "ori {}, {}, {}".format(register, register, encoded & 0xFFFF)]
+    return [f"lui {register}, {encoded >> 16}", f"ori {register}, {register}, {encoded & 0xFFFF}"]
 
 
 def _expand_la(register: str, expression: str, constants: dict[str, int]) -> list[str]:
@@ -851,8 +854,8 @@ def _expand_la(register: str, expression: str, constants: dict[str, int]) -> lis
         if not 0 <= value <= MAX_ADDRESS:
             _fail("la address is outside 24-bit memory range")
     return [
-        "lui {}, (({}) >> 16)".format(register, expression),
-        "ori {}, {}, (({}) & 0xFFFF)".format(register, register, expression),
+        f"lui {register}, (({expression}) >> 16)",
+        f"ori {register}, {register}, (({expression}) & 0xFFFF)",
     ]
 
 
@@ -861,7 +864,7 @@ def _substitute_macro(text: str, params: tuple[str, ...], args: list[str], prefi
     for local in sorted(set(LOCAL_LABEL_RE.findall(result)), key=len, reverse=True):
         result = result.replace(local, prefix + local[2:])
     for param, arg in zip(params, args, strict=True):
-        pattern = re.compile(r"(?<![A-Za-z0-9_]){}(?![A-Za-z0-9_])".format(re.escape(param)))
+        pattern = re.compile(rf"(?<![A-Za-z0-9_]){re.escape(param)}(?![A-Za-z0-9_])")
         result = pattern.sub(arg, result)
     return result
 
@@ -919,7 +922,7 @@ def _split_words(text: str) -> list[str]:
 def _after_directive(statement: str, directive: str) -> str:
     rest = statement[len(directive) :].strip()
     if not rest:
-        _fail("{} requires an argument".format(directive))
+        _fail(f"{directive} requires an argument")
     return rest
 
 
@@ -971,7 +974,7 @@ def _next_quote_state(quote: str | None, char: str) -> str | None:
 def _join_label(label: str | None, statement: str) -> str:
     if label is None:
         return statement
-    return "{}: {}".format(label, statement)
+    return f"{label}: {statement}"
 
 
 def _parse_memory_operand(operand: str, line: SourceLine) -> tuple[str, str]:
@@ -1046,17 +1049,17 @@ def _register(name: str, line: SourceLine) -> int:
     try:
         return register_number(name)
     except EncodingError:
-        _fail_at(line, "unknown register: {}".format(name))
+        _fail_at(line, f"unknown register: {name}")
 
 
 def _require_operand_count(operands: list[str], expected: int, line: SourceLine) -> None:
     if len(operands) != expected:
-        _fail_at(line, "expected {} operands".format(expected))
+        _fail_at(line, f"expected {expected} operands")
 
 
 def _require_raw_operand_count(operands: list[str], expected: int, mnemonic: str) -> None:
     if len(operands) != expected:
-        _fail("{} expects {} operands".format(mnemonic, expected))
+        _fail(f"{mnemonic} expects {expected} operands")
 
 
 def _eval_with(symbols: dict[str, int], expression: str) -> int:
@@ -1071,13 +1074,13 @@ def _unsigned_16(value: int, line: SourceLine) -> int:
 
 def _signed_16(value: int, line: SourceLine) -> int:
     if not -(1 << 15) <= value < (1 << 15):
-        _fail_at(line, "signed 16-bit value out of range: {}".format(value))
+        _fail_at(line, f"signed 16-bit value out of range: {value}")
     return encode_signed_16(value)
 
 
 def _check_address(address: int, line: SourceLine) -> None:
     if not 0 <= address <= MAX_ADDRESS:
-        _fail_at(line, "address out of range: {}".format(address))
+        _fail_at(line, f"address out of range: {address}")
 
 
 def _check_word_address(address: int, line: SourceLine) -> None:
@@ -1130,7 +1133,7 @@ def _contiguous_payloads(data: dict[int, int]) -> list[tuple[int, bytes]]:
 
 
 def _fail_at(line: SourceLine, message: str) -> NoReturn:
-    _fail("line {}: {}".format(line.number, message))
+    _fail(f"line {line.number}: {message}")
 
 
 def _fail(message: str) -> NoReturn:

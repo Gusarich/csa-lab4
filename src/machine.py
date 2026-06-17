@@ -59,32 +59,32 @@ def main(
 def format_trace_entry(entry: TraceEntry) -> str:
     """Format one trace entry as a single log line."""
     fields = [
-        "T={:06d}".format(entry.tick),
-        "step={}".format(entry.step),
-        "mode={}".format(entry.mode.value),
-        "state={}".format(entry.state.value),
-        "pc={:06X}".format(entry.pc),
-        "ir=0x{:08X}".format(entry.ir),
-        "alu_out=0x{:08X}".format(entry.alu_out),
-        "addr_sel={:06X}".format(entry.selected_address),
-        "decoded={}".format(entry.decoded or "-"),
-        "epc={:06X}".format(entry.epc),
-        "cause={}".format(entry.cause),
-        "status={}".format(_format_status(entry.status)),
-        "irq={}".format(int(entry.irq_line)),
-        "in_status={}".format(_format_input_status(entry.input_status)),
-        "out_len={}".format(entry.output_length),
-        "stop={}".format(entry.stop_reason.value),
-        "regs={}".format(_format_registers(entry.registers)),
+        f"T={entry.tick:06d}",
+        f"step={entry.step}",
+        f"mode={entry.mode.value}",
+        f"state={entry.state.value}",
+        f"pc={entry.pc:06X}",
+        f"ir=0x{entry.ir:08X}",
+        f"alu_out=0x{entry.alu_out:08X}",
+        f"addr_sel={entry.selected_address:06X}",
+        f"decoded={entry.decoded or '-'}",
+        f"epc={entry.epc:06X}",
+        f"cause={entry.cause}",
+        f"status={_format_status(entry.status)}",
+        f"irq={int(entry.irq_line)}",
+        f"in_status={_format_input_status(entry.input_status)}",
+        f"out_len={entry.output_length}",
+        f"stop={entry.stop_reason.value}",
+        f"regs={_format_registers(entry.registers)}",
     ]
     if entry.source:
-        fields.append("src={!r}".format(entry.source))
+        fields.append(f"src={entry.source!r}")
     if entry.cache is not None:
-        fields.append("cache={}".format(_format_cache(entry)))
+        fields.append(f"cache={_format_cache(entry)}")
     if entry.input_event is not None:
-        fields.append("input={}".format(_format_input_event(entry)))
+        fields.append(f"input={_format_input_event(entry)}")
     if entry.port_event:
-        fields.append("port={}".format(entry.port_event))
+        fields.append(f"port={entry.port_event}")
     return " ".join(fields)
 
 
@@ -98,8 +98,8 @@ def _write_stdout(result: SimulationResult) -> None:
         sys.stdout.write(result.stdout)
         if not result.stdout.endswith("\n"):
             sys.stdout.write("\n")
-    print("stop reason:", result.stop_reason.value)
-    print("ticks:", result.ticks)
+    sys.stdout.write(f"stop reason: {result.stop_reason.value}\n")
+    sys.stdout.write(f"ticks: {result.ticks}\n")
 
 
 def _read_source_map(path: Path) -> dict[int, str]:
@@ -117,15 +117,15 @@ def _read_source_map(path: Path) -> dict[int, str]:
 
 
 def _format_status(status: int) -> str:
-    return "IE:{} IN_IRQ:{}".format(status & 1, (status >> 1) & 1)
+    return f"IE:{status & 1} IN_IRQ:{(status >> 1) & 1}"
 
 
 def _format_input_status(status: int) -> str:
-    return "READY:{} EOF:{} OVERRUN:{}".format(status & 1, (status >> 1) & 1, (status >> 2) & 1)
+    return f"READY:{status & 1} EOF:{(status >> 1) & 1} OVERRUN:{(status >> 2) & 1}"
 
 
 def _format_registers(registers: tuple[int, ...]) -> str:
-    return "[" + ",".join("{}={:08X}".format(name, registers[index]) for index, name in enumerate(REGISTER_NAMES)) + "]"
+    return "[" + ",".join(f"{name}={registers[index]:08X}" for index, name in enumerate(REGISTER_NAMES)) + "]"
 
 
 def _format_cache(entry: TraceEntry) -> str:
@@ -140,7 +140,7 @@ def _format_cache(entry: TraceEntry) -> str:
     if cache.completed:
         parts.append("ready")
     if cache.value is not None:
-        parts.append("value=0x{:08X}".format(cache.value))
+        parts.append(f"value=0x{cache.value:08X}")
     return ":".join(parts)
 
 
@@ -150,9 +150,9 @@ def _cache_base_parts(entry: TraceEntry) -> list[str]:
     return [
         cache.operation.value,
         cache.phase.value,
-        "addr={:06X}".format(cache.address),
-        "index={:02d}".format(cache.index),
-        "tag={:06X}".format(cache.tag),
+        f"addr={cache.address:06X}",
+        f"index={cache.index:02d}",
+        f"tag={cache.tag:06X}",
     ]
 
 
@@ -160,11 +160,11 @@ def _append_cache_memory_parts(entry: TraceEntry, parts: list[str]) -> None:
     assert entry.cache is not None
     cache = entry.cache
     if cache.memory_address is not None:
-        parts.append("mem={:06X}".format(cache.memory_address))
+        parts.append(f"mem={cache.memory_address:06X}")
     if cache.word_index is not None:
-        parts.append("word={}".format(cache.word_index))
+        parts.append(f"word={cache.word_index}")
     if cache.latency_tick is not None:
-        parts.append("lat={}".format(cache.latency_tick))
+        parts.append(f"lat={cache.latency_tick}")
 
 
 def _format_input_event(entry: TraceEntry) -> str:
@@ -174,12 +174,11 @@ def _format_input_event(entry: TraceEntry) -> str:
         token = "EOF"
     else:
         token = repr(chr(event.value))
-    return "tick={} token={} ready={} eof={} overrun={}".format(
-        event.tick,
-        token,
-        int(entry.input_event.ready),
-        int(entry.input_event.eof),
-        int(entry.input_event.overrun),
+    return (
+        f"tick={event.tick} token={token} "
+        f"ready={int(entry.input_event.ready)} "
+        f"eof={int(entry.input_event.eof)} "
+        f"overrun={int(entry.input_event.overrun)}"
     )
 
 
@@ -204,7 +203,7 @@ def _cli() -> None:
             max_ticks=args.max_ticks,
         )
     except Exception as exc:
-        print("machine error:", exc, file=sys.stderr)
+        sys.stderr.write(f"machine error: {exc}\n")
         raise SystemExit(1) from exc
 
 

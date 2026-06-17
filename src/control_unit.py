@@ -263,7 +263,9 @@ class ControlUnit:
         elif opcode in {Opcode.ADDI, Opcode.ANDI, Opcode.ORI, Opcode.XORI}:
             rhs = sign_extend_16(instruction.imm16) if opcode == Opcode.ADDI else instruction.imm16
             result = self.datapath.alu_execute(
-                _alu_operation(opcode), self.datapath.read_register(instruction.rs1), rhs
+                _alu_operation(opcode),
+                self.datapath.read_register(instruction.rs1),
+                rhs,
             )
         else:
             result = self.datapath.alu_execute(
@@ -327,11 +329,11 @@ class ControlUnit:
         if instruction.opcode == Opcode.IN:
             value = self.datapath.port_read(instruction.port16)
             self.datapath.write_register(instruction.rd, value)
-            self.port_event = "in 0x{:04X} -> 0x{:08X}".format(instruction.port16, value)
+            self.port_event = f"in 0x{instruction.port16:04X} -> 0x{value:08X}"
         else:
             value = self.datapath.read_register(instruction.rd)
             self.datapath.port_write(instruction.port16, value)
-            self.port_event = "out 0x{:04X} <- 0x{:08X}".format(instruction.port16, value)
+            self.port_event = f"out 0x{instruction.port16:04X} <- 0x{value:08X}"
         self._after_instruction()
 
     def _execute_system(self) -> None:

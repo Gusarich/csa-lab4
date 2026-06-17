@@ -106,7 +106,8 @@ class DataPath:
         elif source == AddressSource.ALU_OUT:
             self.selected_address = self.alu_out
         else:
-            raise DataPathError("unknown address source: {}".format(source))
+            message = f"unknown address source: {source}"
+            raise DataPathError(message)
         return self.selected_address
 
     def cache_read(self, address: int) -> None:
@@ -159,7 +160,8 @@ class DataPath:
         rhs &= WORD_MASK
         operation_func = ALU_FUNCTIONS.get(operation)
         if operation_func is None:
-            raise DataPathError("unknown ALU operation: {}".format(operation))
+            message = f"unknown ALU operation: {operation}"
+            raise DataPathError(message)
         return operation_func(lhs, rhs)
 
     def snapshot(self) -> DataPathSnapshot:
@@ -229,4 +231,5 @@ def _to_signed(value: int) -> int:
 
 def _check_register(register: int) -> None:
     if not 0 <= register < REGISTER_COUNT:
-        raise DataPathError("register out of range: {}".format(register))
+        message = f"register out of range: {register}"
+        raise DataPathError(message)

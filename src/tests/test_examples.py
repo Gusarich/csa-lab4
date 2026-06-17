@@ -29,6 +29,17 @@ REQUIRED_GOLDENS = {
     "cache_conflict_writeback.yml",
     "tick_lw.yml",
     "trap_irq.yml",
+    "trap_irq_during_handler.yml",
+}
+PRIMARY_GOLDEN_EXAMPLES = {
+    "hello.yml": "hello.asm",
+    "cat.yml": "cat.asm",
+    "hello_user_name.yml": "hello_user_name.asm",
+    "sort.yml": "sort.asm",
+    "double_precision.yml": "double_precision.asm",
+    "prob2_100.yml": "prob2.asm",
+    "cache_sequential.yml": "cache_sequential.asm",
+    "cache_conflict_writeback.yml": "cache_conflict.asm",
 }
 
 
@@ -36,6 +47,17 @@ def test_required_integration_scenarios_are_golden_yaml() -> None:
     missing = sorted(name for name in REQUIRED_GOLDENS if not (GOLDEN / name).is_file())
 
     assert missing == []
+
+
+def test_primary_goldens_embed_checked_in_example_sources() -> None:
+    mismatches = []
+    for golden_name, example_name in sorted(PRIMARY_GOLDEN_EXAMPLES.items()):
+        golden_source = _golden_source(GOLDEN / golden_name)
+        example_source = (EXAMPLES / example_name).read_text(encoding="utf-8")
+        if golden_source != example_source:
+            mismatches.append(f"{golden_name} != {example_name}")
+
+    assert mismatches == []
 
 
 @pytest.mark.parametrize("source_path", EXAMPLE_SOURCES)
@@ -55,3 +77,14 @@ def _previous_code_line(lines: list[str], index: int) -> str:
         if line and not line.startswith(";"):
             return line
     return ""
+
+
+def _golden_source(path: Path) -> str:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    start = lines.index("in_source: |") + 1
+    source_lines = []
+    for line in lines[start:]:
+        if line and not line.startswith("  "):
+            break
+        source_lines.append(line[2:] if line.startswith("  ") else "")
+    return "\n".join(source_lines).rstrip() + "\n"

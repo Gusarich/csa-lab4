@@ -153,7 +153,8 @@ class ByteAddressableMemory:
 
     def _check_word_address(self, address: int) -> None:
         if not 0 <= address <= MAX_WORD_ADDRESS or address % WORD_BYTES != 0:
-            raise MemoryAccessError("word address is out of range or unaligned: {}".format(address))
+            message = f"word address is out of range or unaligned: {address}"
+            raise MemoryAccessError(message)
 
 
 class DirectMappedCache:
@@ -245,9 +246,16 @@ class DirectMappedCache:
         pending.latency_tick += 1
         memory_address = pending.line_base + pending.word_index * WORD_BYTES
         completed = pending.word_index == LINE_WORDS - 1 and pending.latency_tick == MEMORY_LATENCY_PER_WORD
-        value = (
-            self._completion_value(pending) if completed and pending.request.operation == CacheOperation.READ else None
-        )
+        value = None
+        if pending.latency_tick == MEMORY_LATENCY_PER_WORD:
+            fetched_word = self.memory.read_word(memory_address)
+            pending.fill_words[pending.word_index] = fetched_word
+            if completed and pending.request.operation == CacheOperation.READ:
+                value = (
+                    fetched_word
+                    if pending.word_index == pending.word_offset
+                    else pending.fill_words[pending.word_offset]
+                )
         tick = self._tick_result(
             CachePhase.FILL,
             pending,
@@ -258,17 +266,11 @@ class DirectMappedCache:
             latency_tick=pending.latency_tick,
         )
         if pending.latency_tick == MEMORY_LATENCY_PER_WORD:
-            pending.fill_words[pending.word_index] = self.memory.read_word(memory_address)
             if completed:
                 self._complete_fill()
             else:
                 self._advance_fill_word()
         return tick
-
-    def _completion_value(self, pending: PendingAccess) -> int:
-        if pending.word_index == pending.word_offset and pending.latency_tick == MEMORY_LATENCY_PER_WORD:
-            return self.memory.read_word(pending.line_base + pending.word_index * WORD_BYTES)
-        return pending.fill_words[pending.word_offset]
 
     def _complete_fill(self) -> None:
         assert self.pending is not None
@@ -337,7 +339,7 @@ def _line_base(tag: int, index: int) -> int:
 
 def _check_cache_address(address: int) -> None:
     if not 0 <= address <= MAX_WORD_ADDRESS or address % WORD_BYTES != 0:
-        _cache_error("cache address is out of range or unaligned: {}".format(address))
+        _cache_error(f"cache address is out of range or unaligned: {address}")
 
 
 def _memory_error(message: str) -> NoReturn:

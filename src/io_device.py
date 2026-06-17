@@ -146,7 +146,8 @@ class PortController:
             return self.input_device.read_data()
         if port == OUT_STATUS:
             return self.output_device.read_status()
-        raise PortAccessError("cannot read port 0x{:04X}".format(port))
+        message = f"cannot read port 0x{port:04X}"
+        raise PortAccessError(message)
 
     def write(self, port: int, value: int) -> None:
         """Write a 16-bit I/O port."""
@@ -156,7 +157,8 @@ class PortController:
         if port == OUT_DATA:
             self.output_device.write_data(value)
             return
-        raise PortAccessError("cannot write port 0x{:04X}".format(port))
+        message = f"cannot write port 0x{port:04X}"
+        raise PortAccessError(message)
 
     def apply_tick(self, tick: int) -> AppliedInputEvent | None:
         """Apply one input event, if scheduled for this tick."""
@@ -230,7 +232,8 @@ def _parse_tick(token: str, line_number: int) -> int:
     try:
         tick = int(token, 0)
     except ValueError as exc:
-        raise InputScheduleError("line {}: invalid tick".format(line_number)) from exc
+        message = f"line {line_number}: invalid tick"
+        raise InputScheduleError(message) from exc
     if tick < 0:
         _schedule_error(line_number, "tick must be non-negative")
     return tick
@@ -240,7 +243,8 @@ def _parse_input_value(token: str, line_number: int) -> int:
     try:
         value = ast.literal_eval(token)
     except (SyntaxError, ValueError) as exc:
-        raise InputScheduleError("line {}: invalid input token".format(line_number)) from exc
+        message = f"line {line_number}: invalid input token"
+        raise InputScheduleError(message) from exc
     if not isinstance(value, str) or len(value) != 1:
         _schedule_error(line_number, "input token must be one character")
     code = ord(value)
@@ -266,7 +270,8 @@ def _validate_schedule(events: list[InputEvent]) -> None:
 
 
 def _schedule_error(line_number: int, message: str) -> None:
-    raise InputScheduleError("line {}: {}".format(line_number, message))
+    full_message = f"line {line_number}: {message}"
+    raise InputScheduleError(full_message)
 
 
 def _schedule_global_error(message: str) -> NoReturn:

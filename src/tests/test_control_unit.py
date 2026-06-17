@@ -25,7 +25,7 @@ def test_runs_simple_port_output_program_to_halt() -> None:
             li a0, 'A'
             out OUT_DATA, a0
             halt
-        """
+        """,
     )
 
     assert result.stdout == "A"
@@ -51,7 +51,7 @@ def test_executes_memory_store_load_through_cache() -> None:
             lw a1, 0(a0)
             out OUT_DATA, a1
             halt
-        """
+        """,
     )
 
     assert result.stdout == "c"
@@ -76,7 +76,7 @@ def test_executes_branch_and_jump_control_flow() -> None:
             li a0, 'Y'
             out OUT_DATA, a0
             halt
-        """
+        """,
     )
 
     assert result.stdout == "Y"
@@ -163,7 +163,7 @@ def test_faults_on_unaligned_jump_register_target() -> None:
         _start:
             li t0, 0x41
             jr t0
-        """
+        """,
     )
 
     assert result.stop_reason == StopReason.FAULT_ADDR

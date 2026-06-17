@@ -55,8 +55,8 @@ def test_assembles_sections_vectors_pstr_bss_and_listing() -> None:
             .section .bss
             buf:
                 .space 8
-            """
-        )
+            """,
+        ),
     )
 
     assert result.symbols["_start"] == 0x000040
@@ -114,8 +114,8 @@ def test_expands_conditionals_macros_and_local_labels() -> None:
                 halt
             .endif
                 halt
-            """
-        )
+            """,
+        ),
     )
 
     segments = decode_binary_image(result.binary)
@@ -154,8 +154,8 @@ def test_pstr_allows_non_ascii_bytes_only_through_hex_escape() -> None:
             .section .rodata
             msg:
                 .pstr "\xE9"
-            """
-        )
+            """,
+        ),
     )
 
     segment = decode_binary_image(result.binary)[0]
@@ -179,7 +179,7 @@ def test_asm_cli_public_interface_writes_binary_listing_and_map(tmp_path: Path) 
             .section .text
             _start:
                 halt
-            """
+            """,
         ),
         encoding="utf-8",
     )
@@ -217,4 +217,5 @@ def _word_at(segments: list[Segment], address: int) -> int:
         if start <= address <= end - WORD_BYTES:
             offset = address - start
             return word_from_bytes(segment.data[offset : offset + WORD_BYTES])
-    raise AssertionError("word not found at 0x{:06X}".format(address))
+    message = f"word not found at 0x{address:06X}"
+    raise AssertionError(message)

@@ -52,5 +52,6 @@ def _selected_trace(log: list[Any], patterns: list[str]) -> str:
                 start = index + 1
                 break
         else:
-            raise AssertionError("trace pattern not found in order: {}".format(pattern))
+            message = f"trace pattern not found in order: {pattern}"
+            raise AssertionError(message)
     return "\n".join(selected)

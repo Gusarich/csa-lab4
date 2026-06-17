@@ -31,7 +31,7 @@ def test_memory_loads_payload_and_bss_segments() -> None:
         [
             Segment(0x100, b"\x12\x34\x56\x78", SegmentFlag(0)),
             Segment(0x200, b"", SegmentFlag.WRITE | SegmentFlag.BSS, byte_count=4),
-        ]
+        ],
     )
 
     assert memory.read_word(0x100) == 0x12345678
@@ -60,6 +60,17 @@ def test_cache_clean_miss_then_spatial_hit() -> None:
     assert hit_ticks[0].hit
     assert hit_ticks[0].completed
     assert hit_ticks[0].value == 0x22222222
+
+
+def test_cache_fill_reads_each_memory_word_once() -> None:
+    memory = CountingMemory()
+    cache = DirectMappedCache(memory)
+
+    cache.begin_read(0x000C)
+    miss_ticks = _drain_cache(cache)
+
+    assert miss_ticks[-1].completed
+    assert memory.read_addresses == [0x0000, 0x0004, 0x0008, 0x000C]
 
 
 def test_cache_dirty_conflict_miss_writes_back_victim_line() -> None:
@@ -129,7 +140,7 @@ def test_input_device_records_overrun_without_hidden_queue() -> None:
         [
             InputEvent(1, InputEventKind.BYTE, ord("A")),
             InputEvent(2, InputEventKind.BYTE, ord("B")),
-        ]
+        ],
     )
 
     assert device.apply_tick(1) is not None
@@ -169,3 +180,13 @@ def _drain_cache(cache: DirectMappedCache) -> list[CacheTick]:
     while cache.is_busy():
         ticks.append(cache.tick())
     return ticks
+
+
+class CountingMemory(ByteAddressableMemory):
+    def __init__(self) -> None:
+        super().__init__()
+        self.read_addresses: list[int] = []
+
+    def read_word(self, address: int) -> int:
+        self.read_addresses.append(address)
+        return super().read_word(address)

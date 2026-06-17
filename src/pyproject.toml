@@ -47,7 +47,6 @@ select = [
     "YTT",
     "ASYNC",
     "A",
-    "COM",
     "FA",
     "ICN",
     "INP",
@@ -59,19 +58,6 @@ select = [
     "PD",
     "TRY",
     "RUF",
-]
-ignore = [
-    "COM812",
-    "E501",
-    "T201",
-    "RUF002",
-    "RUF003",
-    "PTH123",
-    "PTH118",
-    "UP032",
-    "PTH103",
-    "PTH120",
-    "PTH100",
 ]
 unfixable = [
     "ERA001",

@@ -218,7 +218,8 @@ def register_number(name: str) -> int:
     try:
         return REGISTER_BY_NAME[name]
     except KeyError as exc:
-        raise EncodingError("unknown register: {}".format(name)) from exc
+        message = f"unknown register: {name}"
+        raise EncodingError(message) from exc
 
 
 def register_name(number: int) -> str:
@@ -262,7 +263,8 @@ def decode_instruction(word: int) -> Instruction:
     opcode_code = (word >> 24) & 0xFF
     spec = SPEC_BY_CODE.get(opcode_code)
     if spec is None:
-        raise DecodingError("unknown opcode: 0x{:02X}".format(opcode_code))
+        message = f"unknown opcode: 0x{opcode_code:02X}"
+        raise DecodingError(message)
     if spec.instr_format == InstructionFormat.R_TYPE:
         _check_reserved(word & 0xFFF)
         rd = (word >> 20) & 0xF
@@ -316,7 +318,8 @@ def sign_extend(value: int, bits: int) -> int:
 def encode_signed_16(value: int) -> int:
     """Encode a signed 16-bit integer as an unsigned field."""
     if not -(1 << 15) <= value < (1 << 15):
-        raise EncodingError("signed 16-bit value out of range: {}".format(value))
+        message = f"signed 16-bit value out of range: {value}"
+        raise EncodingError(message)
     return value & 0xFFFF
 
 
@@ -329,14 +332,12 @@ def disassemble(instruction: Instruction) -> str:
     if spec.instr_format == InstructionFormat.I_TYPE:
         return _disassemble_i(instruction)
     if spec.instr_format == InstructionFormat.B_TYPE:
-        return "{} {}, {}, {}".format(
-            mnemonic,
-            register_name(instruction.rs1),
-            register_name(instruction.rs2),
-            sign_extend(instruction.imm16, 16),
+        return (
+            f"{mnemonic} {register_name(instruction.rs1)}, "
+            f"{register_name(instruction.rs2)}, {sign_extend(instruction.imm16, 16)}"
         )
     if spec.instr_format == InstructionFormat.J_TYPE:
-        return "{} 0x{:06X}".format(mnemonic, instruction.addr24)
+        return f"{mnemonic} 0x{instruction.addr24:06X}"
     if spec.instr_format == InstructionFormat.P_TYPE:
         return _disassemble_p(instruction)
     return mnemonic
@@ -391,7 +392,7 @@ def listing_line(address: int, word: int, mnemonic: str) -> str:
     """Format a required debug listing line."""
     _check_address(address)
     _check_u32(word, "word")
-    return "{:06X} - 0x{:08X} - {}".format(address, word, mnemonic)
+    return f"{address:06X} - 0x{word:08X} - {mnemonic}"
 
 
 def _decode_binary_header(data: bytes) -> int:
@@ -403,7 +404,8 @@ def _decode_binary_header(data: bytes) -> int:
         raise BinaryImageError(message)
     version = int.from_bytes(data[4:6], "big")
     if version != BINARY_VERSION:
-        raise BinaryImageError("unsupported binary image version: {}".format(version))
+        message = f"unsupported binary image version: {version}"
+        raise BinaryImageError(message)
     return int.from_bytes(data[6:8], "big")
 
 
@@ -426,51 +428,43 @@ def _decode_segment(data: bytes, offset: int) -> tuple[Segment, int]:
 
 def _disassemble_r(instruction: Instruction) -> str:
     if instruction.opcode == Opcode.JR:
-        return "jr {}".format(register_name(instruction.rs1))
-    return "{} {}, {}, {}".format(
-        instruction.opcode.value,
-        register_name(instruction.rd),
-        register_name(instruction.rs1),
-        register_name(instruction.rs2),
+        return f"jr {register_name(instruction.rs1)}"
+    return (
+        f"{instruction.opcode.value} {register_name(instruction.rd)}, "
+        f"{register_name(instruction.rs1)}, {register_name(instruction.rs2)}"
     )
 
 
 def _disassemble_i(instruction: Instruction) -> str:
     if instruction.opcode == Opcode.LW:
-        return "lw {}, {}({})".format(
-            register_name(instruction.rd),
-            sign_extend(instruction.imm16, 16),
-            register_name(instruction.rs1),
+        return (
+            f"lw {register_name(instruction.rd)}, "
+            f"{sign_extend(instruction.imm16, 16)}({register_name(instruction.rs1)})"
         )
     if instruction.opcode == Opcode.SW:
-        return "sw {}, {}({})".format(
-            register_name(instruction.rd),
-            sign_extend(instruction.imm16, 16),
-            register_name(instruction.rs1),
+        return (
+            f"sw {register_name(instruction.rd)}, "
+            f"{sign_extend(instruction.imm16, 16)}({register_name(instruction.rs1)})"
         )
     imm = instruction.imm16
     if instruction.opcode == Opcode.ADDI:
         imm = sign_extend(imm, 16)
     if instruction.opcode == Opcode.LUI:
-        return "lui {}, {}".format(register_name(instruction.rd), imm)
-    return "{} {}, {}, {}".format(
-        instruction.opcode.value,
-        register_name(instruction.rd),
-        register_name(instruction.rs1),
-        imm,
-    )
+        return f"lui {register_name(instruction.rd)}, {imm}"
+    return f"{instruction.opcode.value} {register_name(instruction.rd)}, {register_name(instruction.rs1)}, {imm}"
 
 
 def _disassemble_p(instruction: Instruction) -> str:
     if instruction.opcode == Opcode.IN:
-        return "in {}, 0x{:04X}".format(register_name(instruction.rd), instruction.port16)
-    return "out 0x{:04X}, {}".format(instruction.port16, register_name(instruction.rd))
+        return f"in {register_name(instruction.rd)}, 0x{instruction.port16:04X}"
+    return f"out 0x{instruction.port16:04X}, {register_name(instruction.rd)}"
 
 
 def _validate_segment(segment: Segment) -> None:
     flags = int(segment.flags)
     if flags & ~int(SegmentFlag.EXEC | SegmentFlag.WRITE | SegmentFlag.BSS):
-        raise BinaryImageError("unknown segment flags: {}".format(flags))
+        message = f"unknown segment flags: {flags}"
+        raise BinaryImageError(message)
     _check_address(segment.base_address)
     if segment.size < 0:
         message = "negative segment size"
@@ -506,24 +500,29 @@ def _check_jr_encoding(opcode: Opcode, rd: int, rs2: int) -> None:
 
 def _check_address(address: int) -> None:
     if not 0 <= address <= MAX_ADDRESS:
-        raise EncodingError("address out of range: {}".format(address))
+        message = f"address out of range: {address}"
+        raise EncodingError(message)
 
 
 def _check_u4(value: int, field: str) -> None:
     if not 0 <= value <= 0xF:
-        raise EncodingError("{} out of range: {}".format(field, value))
+        message = f"{field} out of range: {value}"
+        raise EncodingError(message)
 
 
 def _check_u16(value: int, field: str) -> None:
     if not 0 <= value <= 0xFFFF:
-        raise EncodingError("{} out of range: {}".format(field, value))
+        message = f"{field} out of range: {value}"
+        raise EncodingError(message)
 
 
 def _check_u24(value: int, field: str) -> None:
     if not 0 <= value <= 0xFFFFFF:
-        raise EncodingError("{} out of range: {}".format(field, value))
+        message = f"{field} out of range: {value}"
+        raise EncodingError(message)
 
 
 def _check_u32(value: int, field: str) -> None:
     if not 0 <= value <= 0xFFFFFFFF:
-        raise EncodingError("{} out of range: {}".format(field, value))
+        message = f"{field} out of range: {value}"
+        raise EncodingError(message)
