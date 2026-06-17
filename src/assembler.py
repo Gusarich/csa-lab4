@@ -879,23 +879,33 @@ def _source_text(line: SourceLine) -> str:
     return _meaningful_text(line.text)
 
 
-def _strip_comment(text: str) -> str:  # noqa: C901
-    quote: str | None = None
-    escaped = False
-    for index, char in enumerate(text):
-        if escaped:
-            escaped = False
-            continue
-        if char == "\\" and quote is not None:
-            escaped = True
-            continue
+class _QuoteScanner:
+    def __init__(self) -> None:
+        self.quote: str | None = None
+        self.escaped = False
+
+    def consume(self, char: str) -> bool:
+        if self.escaped:
+            self.escaped = False
+            return True
+        if char == "\\" and self.quote is not None:
+            self.escaped = True
+            return True
         if char in {"'", '"'}:
-            if quote is None:
-                quote = char
-            elif quote == char:
-                quote = None
+            self.quote = _next_quote_state(self.quote, char)
+            return True
+        return self.quote is not None
+
+    def is_open(self) -> bool:
+        return self.quote is not None
+
+
+def _strip_comment(text: str) -> str:
+    scanner = _QuoteScanner()
+    for index, char in enumerate(text):
+        if scanner.consume(char):
             continue
-        if char == ";" and quote is None:
+        if char == ";":
             return text[:index]
     return text
 
@@ -926,41 +936,53 @@ def _after_directive(statement: str, directive: str) -> str:
     return rest
 
 
-def _split_operands(text: str) -> list[str]:  # noqa: C901
+def _split_operands(text: str) -> list[str]:
     if not text:
         return []
-    result: list[str] = []
-    start = 0
-    depth = 0
-    quote: str | None = None
-    escaped = False
-    for index, char in enumerate(text):
-        if escaped:
-            escaped = False
-            continue
-        if char == "\\" and quote is not None:
-            escaped = True
-            continue
-        if char in {"'", '"'}:
-            quote = _next_quote_state(quote, char)
-            continue
-        if quote is not None:
-            continue
+    return _OperandSplitter(text).split()
+
+
+class _OperandSplitter:
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.result: list[str] = []
+        self.start = 0
+        self.depth = 0
+        self.scanner = _QuoteScanner()
+
+    def split(self) -> list[str]:
+        for index, char in enumerate(self.text):
+            self._consume(index, char)
+        self._finish()
+        return self.result
+
+    def _consume(self, index: int, char: str) -> None:
+        if self.scanner.consume(char):
+            return
         if char == "(":
-            depth += 1
-        elif char == ")":
-            depth -= 1
-            if depth < 0:
-                _fail("unbalanced operand parentheses")
-        elif char == "," and depth == 0:
-            result.append(text[start:index].strip())
-            start = index + 1
-    if quote is not None or depth != 0:
-        _fail("unterminated operand")
-    result.append(text[start:].strip())
-    if any(operand == "" for operand in result):
-        _fail("empty operand")
-    return result
+            self.depth += 1
+            return
+        if char == ")":
+            self._close_parenthesis()
+            return
+        if char == "," and self.depth == 0:
+            self._append_operand(index)
+
+    def _close_parenthesis(self) -> None:
+        self.depth -= 1
+        if self.depth < 0:
+            _fail("unbalanced operand parentheses")
+
+    def _finish(self) -> None:
+        if self.scanner.is_open() or self.depth != 0:
+            _fail("unterminated operand")
+        self._append_operand(len(self.text))
+        if any(operand == "" for operand in self.result):
+            _fail("empty operand")
+
+    def _append_operand(self, end: int) -> None:
+        self.result.append(self.text[self.start : end].strip())
+        self.start = end + 1
 
 
 def _next_quote_state(quote: str | None, char: str) -> str | None:
