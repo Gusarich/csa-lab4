@@ -93,7 +93,7 @@ def _previous_code_line(lines: list[str], index: int) -> str:
 
 def _golden_source(path: Path) -> str:
     lines = path.read_text(encoding="utf-8").splitlines()
-    start = lines.index("in_source: |") + 1
+    start = lines.index("in_source: |-") + 1
     source_lines = []
     for line in lines[start:]:
         if line and not line.startswith("  "):

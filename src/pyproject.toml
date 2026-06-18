@@ -8,14 +8,11 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "atomicwrites==1.4.1",
     "coverage>=7.2.7",
     "mypy>=1.4.1",
     "pytest==7.4.3",
     "pytest-golden==0.2.2",
-    "ruamel.yaml==0.18.3",
     "ruff>=0.1.3",
-    "testfixtures==6.18.5",
 ]
 
 [tool.uv]

@@ -14,7 +14,6 @@ import pytest
 import assembler
 import machine
 
-DEFAULT_MAX_TICKS = 1_000_000
 MAX_LOG = 4000
 
 
@@ -41,7 +40,6 @@ def test_assembler_and_machine(golden: Any) -> None:
                 str(input_stream),
                 source_map_file=str(target_map),
                 log_file=str(target_log),
-                max_ticks=golden.get("in_max_ticks", DEFAULT_MAX_TICKS),
             )
 
         code = target.read_bytes()
@@ -51,4 +49,4 @@ def test_assembler_and_machine(golden: Any) -> None:
         assert code == golden.out["out_code"]
         assert code_hex == golden.out["out_code_hex"]
         assert stdout.getvalue() == golden.out["out_stdout"]
-        assert log[0:MAX_LOG] + "EOF" == golden.out["out_log"]
+        assert log[0:MAX_LOG].rstrip("\n") + "\nEOF" == golden.out["out_log"]
