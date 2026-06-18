@@ -589,29 +589,29 @@ T=000493 step=0 mode=MAIN state=EXEC_SYS pc=000050 ir=0x43000000 ... out_len=12 
 
 ### 8.1. Состав тестов
 
-Тестирование двухуровневое. Юнит-тесты (`src/tests/`) покрывают отдельные элементы: ISA (кодирование/декодирование), ассемблер, DataPath, Control Unit, кеш, отдельные компоненты исполнения и сценарии модели. Интеграционные тесты оформлены как **golden-тесты** (`src/golden/`) и запускаются собственным pytest-harness: один тест — один самодостаточный YAML-файл, в котором собрано всё нужное для проверки в одном месте:
+Тестирование двухуровневое. Юнит-тесты (`src/tests/`) покрывают отдельные элементы: ISA (кодирование/декодирование), ассемблер, DataPath, Control Unit, кеш, отдельные компоненты исполнения и сценарии модели. Интеграционные тесты оформлены как **golden-тесты** (`src/golden/*_asm.yml`) через `pytest-golden`, по той же схеме, что в эталонном Python-примере: тест создаёт временные файлы, запускает `assembler.main`, затем `machine.main`, читает бинарный файл, листинг, stdout и журнал.
 
 - `in_source` — исходная программа;
-- `in_args` / расписание ввода;
-- `out_code_base64` — бинарный машинный код;
-- `out_listing` — человекочитаемый листинг (`адрес — hex — мнемоника`);
-- `out_stdout` — вывод программы;
-- `out_log` — репрезентативный фрагмент журнала (при большом объёме обрезается до достаточного для проверки потактовой работы, кеша, прерываний и портов);
-- `out_ticks`, `out_stop_reason`.
+- `in_stdin` — расписание ввода для модели;
+- `in_max_ticks` — ограничение моделирования, если конкретный сценарий требует его явно задать;
+- `out_code` — бинарный машинный код в YAML-формате `!!binary`;
+- `out_code_hex` — человекочитаемый листинг (`адрес — hex — мнемоника`);
+- `out_stdout` — полный stdout транслятора и модели;
+- `out_log` — первые `4000` символов журнала с маркером `EOF`, как в эталонном примере.
 
 ### 8.2. Алгоритмы и golden-тесты
 
 Обязательные демонстрационные программы (исходники — `src/examples/`, эталоны — `src/golden/`):
 
-| Алгоритм          | Демонстрирует                                 | Golden                                                                                                                           |
-| ----------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `hello`           | печать статической Pascal string              | [hello.yml](src/golden/hello.yml)                                                                                                |
-| `cat`             | эхо ввода через прерывания (бесконечный ввод) | [cat.yml](src/golden/cat.yml)                                                                                                    |
-| `hello_user_name` | приглашение, чтение имени, приветствие        | [hello_user_name.yml](src/golden/hello_user_name.yml)                                                                            |
-| `sort`            | загрузка списка чисел, сортировка, вывод      | [sort.yml](src/golden/sort.yml)                                                                                                  |
-| двойная точность  | 64-битная арифметика при 32-битном слове      | [double_precision.yml](src/golden/double_precision.yml)                                                                          |
-| `prob2`           | алгоритм варианта                             | [prob2_range.yml](src/golden/prob2_range.yml) и др.                                                                              |
-| кеш               | влияние кеша на производительность            | [cache_sequential.yml](src/golden/cache_sequential.yml), [cache_conflict_writeback.yml](src/golden/cache_conflict_writeback.yml) |
+| Алгоритм          | Демонстрирует                                 | Golden                                                                                                                                           |
+| ----------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hello`           | печать статической Pascal string              | [hello_asm.yml](src/golden/hello_asm.yml)                                                                                                        |
+| `cat`             | эхо ввода через прерывания (бесконечный ввод) | [cat_asm.yml](src/golden/cat_asm.yml)                                                                                                            |
+| `hello_user_name` | приглашение, чтение имени, приветствие        | [hello_user_name_asm.yml](src/golden/hello_user_name_asm.yml)                                                                                    |
+| `sort`            | загрузка списка чисел, сортировка, вывод      | [sort_asm.yml](src/golden/sort_asm.yml)                                                                                                          |
+| двойная точность  | 64-битная арифметика при 32-битном слове      | [double_precision_asm.yml](src/golden/double_precision_asm.yml)                                                                                  |
+| `prob2`           | алгоритм варианта                             | [prob2_range_asm.yml](src/golden/prob2_range_asm.yml) и др.                                                                                      |
+| кеш               | влияние кеша на производительность            | [cache_sequential_asm.yml](src/golden/cache_sequential_asm.yml), [cache_conflict_writeback_asm.yml](src/golden/cache_conflict_writeback_asm.yml) |
 
 Отдельно проверяются граничные и ошибочные случаи: невыровненный `lw` (`FAULT_ADDR`), плохое кодирование (`FAULT_BAD_ENCODING`), невыровненный `.org`, byte-offset branch, тайминг прерываний (`trap_irq`), потактовость `lw` (`tick_lw`), пустой/нулевой/максимальный/вне-диапазона входы `prob2`.
 
@@ -631,11 +631,12 @@ make        # format-check + lint + typecheck + test + markdownlint
 
 ```bash
 # 1. трансляция: asm -> бинарь + листинг + source map
-python src/asm.py src/examples/hello.asm hello.bin --debug hello.hex --map hello.map.json
+mkdir -p out
+python src/asm.py src/examples/hello.asm out/hello.bin --debug out/hello.hex --map out/hello.map.json
 
 # 2. запуск модели: бинарь + расписание ввода -> вывод + журнал
-: > hello.input
-python src/machine.py hello.bin hello.input --map hello.map.json --log hello.log
+: > out/hello.input
+python src/machine.py out/hello.bin out/hello.input --map out/hello.map.json --log out/hello.log
 ```
 
-Результат `hello`: на stdout — `hello world`, остановка `HALT` за `498` тактов (первые такты — clean miss на reset vector и на выборке инструкций, что наглядно показывает работу кеша). Соответствующие листинг и фрагмент журнала приведены в разделах [5.4](#54-отладочный-листинг) и [6.8](#68-журнал-и-причины-остановки) и зафиксированы в [hello.yml](src/golden/hello.yml).
+Результат `hello`: на stdout — `hello world`, остановка `HALT` за `498` тактов (первые такты — clean miss на reset vector и на выборке инструкций, что наглядно показывает работу кеша). Соответствующие листинг и фрагмент журнала приведены в разделах [5.4](#54-отладочный-листинг) и [6.8](#68-журнал-и-причины-остановки) и зафиксированы в [hello_asm.yml](src/golden/hello_asm.yml).

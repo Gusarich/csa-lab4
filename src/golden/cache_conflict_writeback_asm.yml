@@ -1,0 +1,105 @@
+in_source: |
+  .equ STACK_INIT, 0x01000000
+
+  .section .vectors
+  .org 0x000000
+  .word _start
+  .word 0
+  .space 56
+
+  .section .text
+  .org 0x000040
+  _start:
+      li sp, STACK_INIT
+      la t0, slot0
+      la t1, slot1
+      la t2, slot2
+
+      lw a0, 0(t0)
+      lw a1, 0(t1)
+      lw a2, 0(t2)
+
+      li a3, 'Z'
+      sw a3, 0(t0)
+      sw a3, 0(t1)
+      sw a3, 0(t2)
+
+      lw a0, 0(t0)
+      out OUT_DATA, a0
+
+  done:
+      halt
+
+  .section .data
+  .org 0x000400
+  slot0:
+      .word 'C'
+
+  .org 0x000500
+  slot1:
+      .word 'A'
+
+  .org 0x000600
+  slot2:
+      .word 'C'
+in_stdin: |
+in_max_ticks: 2000
+out_code: !!binary |
+  TDRNQwABAAUAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAEgAAAABFOABABLuAAAUUAAAElUEABRg
+  AAASZgUAFHAAABJ3BgAgFQAAICYAACA3AAAQQABaIUUAACFGAAAhRwAAIBUAAFEQABFDAAAAAAAE
+  AAAAAAQAAAACAAAAQwAABQAAAAAEAAAAAgAAAEEAAAYAAAAABAAAAAIAAABD
+out_code_hex: |-
+  000000 - 0x00000040 - .word 64
+  000004 - 0x00000000 - .word 0
+  000008 - 0x00000000 - .word 0
+  00000C - 0x00000000 - .word 0
+  000010 - 0x00000000 - .word 0
+  000014 - 0x00000000 - .word 0
+  000018 - 0x00000000 - .word 0
+  00001C - 0x00000000 - .word 0
+  000020 - 0x00000000 - .word 0
+  000024 - 0x00000000 - .word 0
+  000028 - 0x00000000 - .word 0
+  00002C - 0x00000000 - .word 0
+  000030 - 0x00000000 - .word 0
+  000034 - 0x00000000 - .word 0
+  000038 - 0x00000000 - .word 0
+  00003C - 0x00000000 - .word 0
+  000040 - 0x14E00100 - lui sp, 256
+  000044 - 0x12EE0000 - ori sp, sp, 0
+  000048 - 0x14500000 - lui t0, 0
+  00004C - 0x12550400 - ori t0, t0, 1024
+  000050 - 0x14600000 - lui t1, 0
+  000054 - 0x12660500 - ori t1, t1, 1280
+  000058 - 0x14700000 - lui t2, 0
+  00005C - 0x12770600 - ori t2, t2, 1536
+  000060 - 0x20150000 - lw a0, 0(t0)
+  000064 - 0x20260000 - lw a1, 0(t1)
+  000068 - 0x20370000 - lw a2, 0(t2)
+  00006C - 0x1040005A - addi a3, zero, 90
+  000070 - 0x21450000 - sw a3, 0(t0)
+  000074 - 0x21460000 - sw a3, 0(t1)
+  000078 - 0x21470000 - sw a3, 0(t2)
+  00007C - 0x20150000 - lw a0, 0(t0)
+  000080 - 0x51100011 - out 0x0011, a0
+  000084 - 0x43000000 - halt
+  000400 - 0x00000043 - .word 67
+  000500 - 0x00000041 - .word 65
+  000600 - 0x00000043 - .word 67
+out_stdout: |
+  source LoC: 43 segments: 5
+  ============================================================
+  Z
+  stop reason: HALT
+  ticks: 684
+
+out_log: |-
+  T=000000 step=0 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:tag:addr=000000:index=00:tag=000000:MISS
+  T=000001 step=1 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fill:addr=000000:index=00:tag=000000:mem=000000:word=0:lat=1
+  T=000002 step=2 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fill:addr=000000:index=00:tag=000000:mem=000000:word=0:lat=2
+  T=000003 step=3 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fill:addr=000000:index=00:tag=000000:mem=000000:word=0:lat=3
+  T=000004 step=4 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fill:addr=000000:index=00:tag=000000:mem=000000:word=0:lat=4
+  T=000005 step=5 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fill:addr=000000:index=00:tag=000000:mem=000000:word=0:lat=5
+  T=000006 step=6 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fill:addr=000000:index=00:tag=000000:mem=000000:word=0:lat=6
+  T=000007 step=7 mode=RESET state=RESET_VECTOR pc=000000 ir=0x00000000 alu_out=0x00000000 addr_sel=000000 decoded=- epc=000000 cause=0 status=IE:0 IN_IRQ:0 irq=0 in_status=READY:0 EOF:0 OVERRUN:0 out_len=0 stop=RUNNING regs=[zero=00000000,a0=00000000,a1=00000000,a2=00000000,a3=00000000,t0=00000000,t1=00000000,t2=00000000,t3=00000000,t4=00000000,t5=00000000,rv=00000000,k0=00000000,k1=00000000,sp=00000000,ra=00000000] src='.word _start' cache=read:fEOF
