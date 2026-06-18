@@ -76,6 +76,9 @@ def test_cache_fill_reads_each_memory_word_once() -> None:
 def test_cache_dirty_conflict_miss_writes_back_victim_line() -> None:
     memory = ByteAddressableMemory()
     memory.write_word(0x0000, 0xAAAAAAAA)
+    memory.write_word(0x0004, 0x22222222)
+    memory.write_word(0x0008, 0x33333333)
+    memory.write_word(0x000C, 0x44444444)
     memory.write_word(0x0100, 0xBBBBBBBB)
     cache = DirectMappedCache(memory)
 
@@ -94,6 +97,9 @@ def test_cache_dirty_conflict_miss_writes_back_victim_line() -> None:
     assert dirty_miss_ticks[-1].completed
     assert dirty_miss_ticks[-1].value == 0xBBBBBBBB
     assert memory.read_word(0x0000) == 0x12345678
+    assert memory.read_word(0x0004) == 0x22222222
+    assert memory.read_word(0x0008) == 0x33333333
+    assert memory.read_word(0x000C) == 0x44444444
 
 
 def test_cache_rejects_unaligned_access_and_double_begin() -> None:
@@ -170,9 +176,17 @@ def test_port_controller_rejects_invalid_direction_or_port() -> None:
     with pytest.raises(PortAccessError):
         ports.read(IN_CTRL)
     with pytest.raises(PortAccessError):
+        ports.read(OUT_DATA)
+    with pytest.raises(PortAccessError):
         ports.write(IN_STATUS, 1)
     with pytest.raises(PortAccessError):
+        ports.write(IN_DATA, 1)
+    with pytest.raises(PortAccessError):
+        ports.write(OUT_STATUS, 1)
+    with pytest.raises(PortAccessError):
         ports.read(0x7777)
+    with pytest.raises(PortAccessError):
+        ports.write(0x7777, 1)
 
 
 def _drain_cache(cache: DirectMappedCache) -> list[CacheTick]:

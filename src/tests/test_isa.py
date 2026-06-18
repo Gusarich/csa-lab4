@@ -60,9 +60,15 @@ def test_encode_decode_i_format() -> None:
 def test_encode_decode_memory_i_format() -> None:
     load = Instruction(Opcode.LW, rd=1, rs1=14, imm16=8)
     store = Instruction(Opcode.SW, rd=5, rs1=14, imm16=encode_signed_16(-4))
+    load_word = encode_instruction(load)
+    store_word = encode_instruction(store)
 
-    assert disassemble(decode_instruction(encode_instruction(load))) == "lw a0, 8(sp)"
-    assert disassemble(decode_instruction(encode_instruction(store))) == "sw t0, -4(sp)"
+    assert load_word == 0x201E0008
+    assert store_word == 0x215EFFFC
+    assert decode_instruction(load_word) == load
+    assert decode_instruction(store_word) == store
+    assert disassemble(load) == "lw a0, 8(sp)"
+    assert disassemble(store) == "sw t0, -4(sp)"
 
 
 def test_encode_decode_branch_format() -> None:
@@ -152,7 +158,9 @@ def test_binary_image_roundtrip_with_bss() -> None:
     image = encode_binary_image(segments)
     decoded = decode_binary_image(image)
 
-    assert image[:4] == b"L4MC"
+    assert image.hex() == (
+        "4c344d43000100030000000000000004000000010000004000000200000000040000000212345678000003000000001000000006"
+    )
     assert decoded == segments
 
 
@@ -178,7 +186,7 @@ def test_binary_image_rejects_bad_magic_and_version() -> None:
     bad_magic = bytearray(good)
     bad_magic[:4] = b"NOPE"
     bad_version = bytearray(good)
-    bad_version[5] = 2
+    bad_version[4:6] = b"\x00\x02"
 
     with pytest.raises(BinaryImageError, match="magic"):
         decode_binary_image(bytes(bad_magic))

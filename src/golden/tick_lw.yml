@@ -23,6 +23,8 @@ in_log_patterns:
 - state=MEM
 - cache=read:fill
 - src='out OUT_DATA, a1' port=out 0x0011 <- 0x00000054
+out_log_pattern_counts:
+  "state=MEM pc=00004C ir=0x20210000": 41
 out_ticks: 132
 out_stop_reason: HALT
 out_stdout: T
